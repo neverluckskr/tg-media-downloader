@@ -47,23 +47,16 @@ class SoundCloudDownloader:
         
         # Unique filename to avoid collisions
         unique_id = uuid.uuid4().hex[:8]
-        output_template = str(self.download_dir / f"%(title)s_{unique_id}.%(ext)s")
+        output_template = str(self.download_dir / f"{unique_id}_%(title)s.%(ext)s")
         
         cmd = [
             get_ytdlp_path(),
             "--no-playlist",
             "--extract-audio",
             "--audio-format", "mp3",
-            "--audio-quality", "0",  # Best quality
-            "--embed-thumbnail",
+            "--audio-quality", "0",
             "--add-metadata",
             "--output", output_template,
-            "--print", "after_move:filepath",
-            "--print", "%(title)s",
-            "--print", "%(uploader)s",
-            "--print", "%(duration)s",
-            "--no-warnings",
-            "--quiet",
             url.strip()
         ]
         
@@ -86,14 +79,12 @@ class SoundCloudDownloader:
                     error=f"Download failed: {error_msg or 'Unknown error'}"
                 )
             
-            # Parse output: filepath, title, artist, duration
-            lines = stdout.decode().strip().split("\n")
-            if len(lines) < 4:
-                return DownloadResult(success=False, error="Failed to parse download output")
-            
-            file_path = Path(lines[0])
-            if not file_path.exists():
+            # Find downloaded file by unique_id prefix
+            files = list(self.download_dir.glob(f"{unique_id}_*.mp3"))
+            if not files:
                 return DownloadResult(success=False, error="Downloaded file not found")
+            
+            file_path = files[0]
             
             # Check file size
             if file_path.stat().st_size > config.MAX_FILE_SIZE:
@@ -103,18 +94,17 @@ class SoundCloudDownloader:
                     error="File exceeds Telegram's 50 MB limit"
                 )
             
-            duration = None
-            try:
-                duration = int(float(lines[3])) if lines[3] and lines[3] != "NA" else None
-            except (ValueError, IndexError):
-                pass
+            # Extract title from filename (remove unique_id prefix and .mp3)
+            title = file_path.stem
+            if title.startswith(f"{unique_id}_"):
+                title = title[len(unique_id) + 1:]
             
             return DownloadResult(
                 success=True,
                 file_path=file_path,
-                title=lines[1] if lines[1] != "NA" else "Unknown Title",
-                artist=lines[2] if lines[2] != "NA" else "Unknown Artist",
-                duration=duration
+                title=title or "Unknown Title",
+                artist="SoundCloud",
+                duration=None
             )
             
         except asyncio.TimeoutError:
