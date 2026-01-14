@@ -278,16 +278,21 @@ async def handle_save(callback: CallbackQuery, callback_data: MP3ToolsCallback) 
     
     try:
         tags = await mp3tools.get_tags(file_path)
+        art_data = await mp3tools.get_album_art(file_path)
         
         audio_file = FSInputFile(
             path=file_path,
             filename=f"{tags.artist or 'Unknown'} - {tags.title or 'Unknown'}.mp3"
         )
         
+        # Telegram needs explicit thumbnail to show album art
+        thumbnail = BufferedInputFile(art_data, filename="cover.jpg") if art_data else None
+        
         await callback.message.answer_audio(
             audio=audio_file,
             title=tags.title,
-            performer=tags.artist
+            performer=tags.artist,
+            thumbnail=thumbnail
         )
         await callback.message.delete()
     except Exception as e:

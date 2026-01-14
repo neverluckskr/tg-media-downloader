@@ -107,12 +107,18 @@ async def process_download(message: Message, url: str, media_type: str, platform
                 path=result.file_path,
                 filename=f"{result.author} - {result.title}{ext}"
             )
+            
+            # Get album art for thumbnail (Telegram needs explicit thumbnail)
+            art_data = await mp3tools.get_album_art(result.file_path) if platform == "soundcloud" else None
+            thumbnail = BufferedInputFile(art_data, filename="cover.jpg") if art_data else None
+            
             await message.answer_audio(
                 audio=audio_file,
                 title=result.title,
                 performer=result.author,
                 duration=result.duration,
-                caption=f"🎵 {result.author} — {result.title}"
+                caption=f"🎵 {result.author} — {result.title}",
+                thumbnail=thumbnail
             )
             
             # For SoundCloud: show album art and MP3 Tools after sending
@@ -122,8 +128,7 @@ async def process_download(message: Message, url: str, media_type: str, platform
                 
                 await status_msg.delete()
                 
-                # Get and show album art
-                art_data = await mp3tools.get_album_art(result.file_path)
+                # Show album art
                 if art_data:
                     await message.answer_photo(
                         photo=BufferedInputFile(art_data, filename="cover.jpg"),
