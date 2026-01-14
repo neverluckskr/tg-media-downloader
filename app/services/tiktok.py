@@ -15,8 +15,7 @@ class TikTokDownloader(BaseDownloader):
             output_dir=config.DOWNLOAD_DIR,
             extract_audio=extract_audio,
             audio_format="mp3",
-            format_spec="best" if not extract_audio else None,
-            extra_args=["--no-watermark"] if not extract_audio else None
+            format_spec="best" if not extract_audio else None
         )
         
         if not success:
