@@ -36,9 +36,12 @@ class SoundCloudDownloader(BaseDownloader):
             if proc.returncode == 0 and stdout:
                 import json
                 data = json.loads(stdout.decode())
+                logger.warning(f"Got metadata: uploader={data.get('uploader')}")
                 return data
-        except Exception:
-            pass
+            else:
+                logger.warning(f"Metadata failed: {stderr.decode()[:100]}")
+        except Exception as e:
+            logger.warning(f"Metadata exception: {e}")
         return {}
     
     async def download_artwork(self, artwork_url: str) -> Optional[bytes]:
