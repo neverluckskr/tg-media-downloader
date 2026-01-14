@@ -9,11 +9,14 @@ router = Router(name="common")
 async def cmd_start(message: Message) -> None:
     """Handle /start command."""
     await message.answer(
-        "🎵 <b>SoundCloud Downloader Bot</b>\n\n"
-        "Send me a SoundCloud track link and I'll download it for you!\n\n"
-        "<b>Supported format:</b>\n"
-        "<code>https://soundcloud.com/artist/track-name</code>\n\n"
-        "Use /help for more info.",
+        "🎵 <b>Media Downloader Bot</b>\n\n"
+        "Отправь мне ссылку и я скачаю для тебя!\n\n"
+        "<b>Поддерживаемые платформы:</b>\n"
+        "• SoundCloud\n"
+        "• YouTube / YouTube Music\n"
+        "• TikTok\n"
+        "• Instagram (Reels/Posts)\n\n"
+        "Используй /help для подробностей.",
         parse_mode="HTML"
     )
 
@@ -22,15 +25,20 @@ async def cmd_start(message: Message) -> None:
 async def cmd_help(message: Message) -> None:
     """Handle /help command."""
     await message.answer(
-        "📖 <b>How to use:</b>\n\n"
-        "1. Copy a SoundCloud track link\n"
-        "2. Send it to this bot\n"
-        "3. Wait for the download\n"
-        "4. Receive your audio file!\n\n"
-        "<b>Limitations:</b>\n"
-        "• Only public tracks are supported\n"
-        "• Max file size: 50 MB\n"
-        "• Playlists are not supported (yet)\n\n"
-        "⚠️ Please respect artist copyrights.",
+        "📖 <b>Как использовать:</b>\n\n"
+        "1. Скопируй ссылку на трек/видео\n"
+        "2. Отправь её боту\n"
+        "3. Выбери формат (аудио/видео)\n"
+        "4. Получи файл!\n\n"
+        "<b>Примеры ссылок:</b>\n"
+        "• <code>https://soundcloud.com/artist/track</code>\n"
+        "• <code>https://youtube.com/watch?v=...</code>\n"
+        "• <code>https://vm.tiktok.com/...</code>\n"
+        "• <code>https://instagram.com/reel/...</code>\n\n"
+        "<b>Ограничения:</b>\n"
+        "• Только публичный контент\n"
+        "• Макс. размер: 50 MB\n"
+        "• Плейлисты не поддерживаются\n\n"
+        "⚠️ Уважайте авторские права.",
         parse_mode="HTML"
     )

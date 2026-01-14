@@ -7,13 +7,10 @@ load_dotenv()
 
 class Config:
     BOT_TOKEN: str = os.getenv("BOT_TOKEN", "")
-    DOWNLOAD_DIR: Path = Path(os.getenv("DOWNLOAD_DIR", "/tmp/soundcloud_downloads"))
+    DOWNLOAD_DIR: Path = Path(os.getenv("DOWNLOAD_DIR", "/tmp/media_downloads"))
     
     # Telegram file size limit (50 MB for bots)
     MAX_FILE_SIZE: int = 50 * 1024 * 1024
-    
-    # Supported platforms (extensible)
-    SOUNDCLOUD_PATTERN: str = r"https?://(?:www\.)?soundcloud\.com/[\w-]+/[\w-]+"
     
     @classmethod
     def validate(cls) -> None:
