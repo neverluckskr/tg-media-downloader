@@ -1,6 +1,7 @@
 """Search handler for SoundCloud."""
 import asyncio
 import json
+import hashlib
 from aiogram import Router, F
 from aiogram.types import Message, CallbackQuery
 from aiogram.filters import Command
@@ -13,9 +14,12 @@ from app.services.ytdlp_wrapper import get_ytdlp_path
 
 router = Router(name="search")
 
+# Store search results URLs (hash -> url)
+_search_urls: dict[str, str] = {}
 
-class SearchCallback(CallbackData, prefix="search"):
-    url: str
+
+class SearchCallback(CallbackData, prefix="src"):
+    h: str  # URL hash
 
 
 async def search_soundcloud(query: str, limit: int = 5) -> list[dict]:
@@ -85,11 +89,12 @@ async def cmd_search(message: Message) -> None:
         builder = InlineKeyboardBuilder()
         for r in results:
             title = r["title"][:30] + "..." if len(r["title"]) > 30 else r["title"]
-            # Store URL in callback - truncate if too long
-            url = r["url"][:60] if r["url"] else ""
+            # Store URL with hash
+            url_hash = hashlib.md5(r["url"].encode()).hexdigest()[:12]
+            _search_urls[url_hash] = r["url"]
             builder.button(
                 text=f"🎵 {title}",
-                callback_data=SearchCallback(url=url)
+                callback_data=SearchCallback(h=url_hash)
             )
         builder.adjust(1)
         
@@ -110,13 +115,18 @@ async def handle_search_result(callback: CallbackQuery, callback_data: SearchCal
     """Handle search result selection."""
     from app.handlers.download import process_download
     
+    url = _search_urls.pop(callback_data.h, None)
+    if not url:
+        await callback.answer(t(callback.from_user.id, "link_expired"), show_alert=True)
+        return
+    
     await callback.answer()
     await callback.message.delete()
     
     # Download the selected track
     await process_download(
         callback.message,
-        callback_data.url,
+        url,
         "audio",
         platform="soundcloud",
         user_id=callback.from_user.id
