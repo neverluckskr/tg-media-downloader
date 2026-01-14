@@ -26,9 +26,7 @@ def get_url_pattern() -> str:
         r"https?://(?:www\.)?"
         r"(?:"
         r"soundcloud\.com/[\w-]+/[\w-]+|"
-        r"(?:youtube\.com/(?:watch\?v=|shorts/)|youtu\.be/|music\.youtube\.com/watch\?v=)[\w-]+|"
-        r"(?:tiktok\.com/@[\w.-]+/video/\d+|vm\.tiktok\.com/[\w]+|vt\.tiktok\.com/[\w]+)|"
-        r"instagram\.com/(?:p|reel|reels|stories)/[\w-]+"
+        r"(?:tiktok\.com/@[\w.-]+/video/\d+|vm\.tiktok\.com/[\w]+|vt\.tiktok\.com/[\w]+)"
         r")"
     )
 
@@ -54,7 +52,7 @@ async def handle_media_link(message: Message) -> None:
         await process_download(message, url, "audio")
         return
     
-    # Platforms with video - offer choice
+    # TikTok - offer choice
     url_hash = str(hash(url))[-8:]
     _pending_urls[url_hash] = url
     
@@ -63,14 +61,8 @@ async def handle_media_link(message: Message) -> None:
     builder.button(text="🎬 Video", callback_data=MediaTypeCallback(action="video", url_hash=url_hash))
     builder.adjust(2)
     
-    platform_names = {
-        "youtube": "YouTube",
-        "tiktok": "TikTok", 
-        "instagram": "Instagram"
-    }
-    
     await message.answer(
-        f"📥 <b>{platform_names.get(platform, platform)}</b>\n\nВыбери формат:",
+        f"📥 <b>TikTok</b>\n\nВыбери формат:",
         reply_markup=builder.as_markup(),
         parse_mode="HTML"
     )
