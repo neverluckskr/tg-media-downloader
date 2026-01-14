@@ -67,8 +67,11 @@ class SoundCloudDownloader(BaseDownloader):
         unique_id = file_path.name.split("_")[0]
         raw_title = metadata.get("title") or extract_title_from_path(file_path, unique_id)
         
+        # Get uploader (channel name) as fallback artist
+        uploader = metadata.get("uploader") or metadata.get("creator") or ""
+        
         # Parse "Artist — Track" or "Artist - Track" format from title
-        artist = "Unknown"
+        artist = None
         title = raw_title
         for separator in [" — ", " - ", " – "]:
             if separator in raw_title:
@@ -76,6 +79,10 @@ class SoundCloudDownloader(BaseDownloader):
                 artist = parts[0].strip()
                 title = parts[1].strip()
                 break
+        
+        # Fallback: use uploader if no artist found in title
+        if not artist:
+            artist = uploader or "Unknown"
         
         # Download and embed artwork
         artwork_url = metadata.get("thumbnail")
