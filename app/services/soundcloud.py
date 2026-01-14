@@ -18,6 +18,7 @@ class SoundCloudDownloader(BaseDownloader):
             get_ytdlp_path(),
             "--dump-json",
             "--no-download",
+            "--socket-timeout", "15",
             url.strip()
         ]
         
@@ -27,11 +28,12 @@ class SoundCloudDownloader(BaseDownloader):
                 stdout=asyncio.subprocess.PIPE,
                 stderr=asyncio.subprocess.PIPE
             )
-            stdout, _ = await asyncio.wait_for(proc.communicate(), timeout=30)
+            stdout, stderr = await asyncio.wait_for(proc.communicate(), timeout=20)
             
-            if proc.returncode == 0:
+            if proc.returncode == 0 and stdout:
                 import json
-                return json.loads(stdout.decode())
+                data = json.loads(stdout.decode())
+                return data
         except Exception:
             pass
         return {}
@@ -67,13 +69,32 @@ class SoundCloudDownloader(BaseDownloader):
         unique_id = file_path.name.split("_")[0]
         raw_title = metadata.get("title") or extract_title_from_path(file_path, unique_id)
         
-        # Get uploader (channel name) as fallback artist
-        uploader = metadata.get("uploader") or metadata.get("creator") or ""
+        # Get uploader (channel name) - try multiple fields
+        uploader = (
+            metadata.get("uploader") or 
+            metadata.get("creator") or 
+            metadata.get("artist") or
+            metadata.get("channel") or
+            ""
+        )
+        
+        # Also try to read artist from MP3 tags (yt-dlp embeds this)
+        if not uploader:
+            try:
+                from mutagen.mp3 import MP3
+                from mutagen.id3 import ID3
+                audio = MP3(file_path, ID3=ID3)
+                if audio.tags:
+                    # TPE1 = artist tag
+                    if 'TPE1' in audio.tags:
+                        uploader = str(audio.tags['TPE1'].text[0])
+            except Exception:
+                pass
         
         # Parse "Artist — Track" or "Artist - Track" format from title
         artist = None
         title = raw_title
-        for separator in [" — ", " - ", " – "]:
+        for separator in [" — ", " - ", " – ", " | "]:
             if separator in raw_title:
                 parts = raw_title.split(separator, 1)
                 artist = parts[0].strip()
@@ -81,8 +102,8 @@ class SoundCloudDownloader(BaseDownloader):
                 break
         
         # Fallback: use uploader if no artist found in title
-        if not artist:
-            artist = uploader or "Unknown"
+        if not artist or artist == "Unknown":
+            artist = uploader if uploader else "Unknown"
         
         # Download and embed artwork
         artwork_url = metadata.get("thumbnail")
