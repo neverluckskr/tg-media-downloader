@@ -98,8 +98,8 @@ async def cmd_help(message: Message) -> None:
 # ============ KEYBOARD BUTTON HANDLERS ============
 
 @router.message(lambda m: m.text in ["🔍 Поиск", "🔍 Search"])
-async def btn_search(message: Message) -> None:
-    from aiogram.fsm.context import FSMContext
+async def btn_search(message: Message, state) -> None:
+    from app.handlers.search import SearchStates
     user_id = message.from_user.id
     lang = t(user_id, "lang_changed")
     is_ru = "Русский" in lang
@@ -109,6 +109,7 @@ async def btn_search(message: Message) -> None:
     else:
         text = "🔎 <b>Search</b>\n\nSource: 🟠 SoundCloud\n\nEnter your query:"
     
+    await state.set_state(SearchStates.waiting_query)
     await message.answer(text, parse_mode="HTML")
 
 

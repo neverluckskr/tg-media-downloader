@@ -7,6 +7,8 @@ from aiogram.types import Message, CallbackQuery
 from aiogram.filters import Command
 from aiogram.filters.callback_data import CallbackData
 from aiogram.utils.keyboard import InlineKeyboardBuilder
+from aiogram.fsm.context import FSMContext
+from aiogram.fsm.state import State, StatesGroup
 
 from app.i18n import t
 from app.database import db
@@ -18,17 +20,21 @@ router = Router(name="search")
 _search_urls: dict[str, str] = {}
 
 
+class SearchStates(StatesGroup):
+    waiting_query = State()
+
+
 class SearchCallback(CallbackData, prefix="src"):
     h: str  # URL hash
 
 
-async def search_soundcloud(query: str, limit: int = 5) -> list[dict]:
+async def search_soundcloud(query: str, limit: int = 10) -> list[dict]:
     """Search SoundCloud using yt-dlp."""
     cmd = [
         get_ytdlp_path(),
-        "--dump-json",
-        "--flat-playlist",
+        "-j",
         "--no-download",
+        "--no-playlist",
         f"scsearch{limit}:{query}"
     ]
     
@@ -45,37 +51,23 @@ async def search_soundcloud(query: str, limit: int = 5) -> list[dict]:
         if line:
             try:
                 data = json.loads(line)
-                results.append({
-                    "title": data.get("title", "Unknown"),
-                    "url": data.get("url") or data.get("webpage_url", ""),
-                    "uploader": data.get("uploader", "Unknown"),
-                    "duration": data.get("duration", 0)
-                })
+                # Use webpage_url which is the proper soundcloud.com URL
+                url = data.get("webpage_url") or data.get("url", "")
+                if url and "soundcloud.com" in url:
+                    results.append({
+                        "title": data.get("title", "Unknown"),
+                        "url": url,
+                        "uploader": data.get("uploader", "Unknown"),
+                        "duration": data.get("duration", 0)
+                    })
             except json.JSONDecodeError:
                 continue
     
     return results
 
 
-@router.message(Command("search"))
-async def cmd_search(message: Message) -> None:
-    """Handle /search command."""
-    user_id = message.from_user.id
-    
-    # Check rate limit
-    allowed, _ = await db.check_rate_limit(user_id)
-    if not allowed:
-        await message.answer(t(user_id, "rate_limit"))
-        return
-    
-    # Get search query
-    args = message.text.split(maxsplit=1)
-    if len(args) < 2:
-        await message.answer(t(user_id, "search_usage"), parse_mode="HTML")
-        return
-    
-    query = args[1].strip()
-    
+async def do_search(message: Message, query: str, user_id: int) -> None:
+    """Perform the actual search."""
     status = await message.answer(t(user_id, "searching"))
     
     try:
@@ -112,6 +104,40 @@ async def cmd_search(message: Message) -> None:
         
     except Exception as e:
         await status.edit_text(f"{t(user_id, 'search_error')}: {str(e)[:50]}")
+
+
+@router.message(Command("search"))
+async def cmd_search(message: Message) -> None:
+    """Handle /search command."""
+    user_id = message.from_user.id
+    
+    # Check rate limit
+    allowed, _ = await db.check_rate_limit(user_id)
+    if not allowed:
+        await message.answer(t(user_id, "rate_limit"))
+        return
+    
+    # Get search query
+    args = message.text.split(maxsplit=1)
+    if len(args) < 2:
+        await message.answer(t(user_id, "search_usage"), parse_mode="HTML")
+        return
+    
+    query = args[1].strip()
+    await do_search(message, query, user_id)
+
+
+@router.message(SearchStates.waiting_query)
+async def handle_search_query(message: Message, state: FSMContext) -> None:
+    """Handle search query from FSM state."""
+    await state.clear()
+    user_id = message.from_user.id
+    query = message.text.strip()
+    
+    if not query or len(query) < 2:
+        return
+    
+    await do_search(message, query, user_id)
 
 
 @router.callback_query(SearchCallback.filter())
