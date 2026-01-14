@@ -32,8 +32,7 @@ async def search_soundcloud(query: str, limit: int = 10, timeout: int = 15) -> l
     """Search SoundCloud using yt-dlp with timeout."""
     cmd = [
         get_ytdlp_path(),
-        "--flat-playlist",
-        "--dump-json",
+        "-j",
         "--no-download",
         "--socket-timeout", "10",
         f"scsearch{limit}:{query}"
@@ -56,11 +55,9 @@ async def search_soundcloud(query: str, limit: int = 10, timeout: int = 15) -> l
         if line:
             try:
                 data = json.loads(line)
-                url = data.get("url") or data.get("webpage_url", "")
-                # flat-playlist gives shorter URLs, construct full URL
-                if url and not url.startswith("http"):
-                    url = f"https://soundcloud.com{url}" if url.startswith("/") else ""
-                if url:
+                # webpage_url is the proper soundcloud.com URL
+                url = data.get("webpage_url", "")
+                if url and "soundcloud.com" in url and "api.soundcloud" not in url:
                     results.append({
                         "title": data.get("title", "Unknown"),
                         "url": url,
