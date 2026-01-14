@@ -11,6 +11,7 @@ from app.services.base import BaseDownloader
 from app.services.mp3tools import mp3tools
 from app.handlers.mp3tools import _file_storage, get_mp3tools_keyboard
 from app.i18n import t
+from app.database import db
 
 
 class MediaTypeCallback(CallbackData, prefix="media"):
@@ -42,6 +43,14 @@ URL_PATTERN = get_url_pattern()
 @bot_router.message(F.text.regexp(URL_PATTERN))
 async def handle_media_link(message: Message) -> None:
     """Auto-detect platform and offer download options."""
+    user_id = message.from_user.id
+    
+    # Rate limiting
+    allowed, _ = await db.check_rate_limit(user_id)
+    if not allowed:
+        await message.answer(t(user_id, "rate_limit"))
+        return
+    
     url_match = re.search(URL_PATTERN, message.text)
     if not url_match:
         return
@@ -54,14 +63,13 @@ async def handle_media_link(message: Message) -> None:
     
     # Audio-only platforms
     if platform == "soundcloud":
-        await process_download(message, url, "audio", platform="soundcloud", user_id=message.from_user.id)
+        await process_download(message, url, "audio", platform="soundcloud", user_id=user_id)
         return
     
     # TikTok - offer choice
     url_hash = str(hash(url))[-8:]
     _pending_urls[url_hash] = url
     
-    user_id = message.from_user.id
     builder = InlineKeyboardBuilder()
     builder.button(text=t(user_id, "btn_audio"), callback_data=MediaTypeCallback(action="audio", url_hash=url_hash))
     builder.button(text=t(user_id, "btn_video"), callback_data=MediaTypeCallback(action="video", url_hash=url_hash))
@@ -99,6 +107,9 @@ async def process_download(message: Message, url: str, media_type: str, platform
     if not result.success:
         await status_msg.edit_text(f"❌ {result.error}")
         return
+    
+    # Save to history
+    await db.add_download(user_id, platform or "unknown", url, result.title, result.author)
     
     try:
         await message.bot.send_chat_action(chat_id=message.chat.id, action=ChatAction.UPLOAD_DOCUMENT)

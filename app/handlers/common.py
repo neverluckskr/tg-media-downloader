@@ -4,7 +4,8 @@ from aiogram.types import Message, CallbackQuery
 from aiogram.filters.callback_data import CallbackData
 from aiogram.utils.keyboard import InlineKeyboardBuilder
 
-from app.i18n import t, set_user_lang, get_user_lang, detect_language
+from app.i18n import t, set_user_lang, detect_language
+from app.database import db
 
 router = Router(name="common")
 
@@ -26,9 +27,10 @@ async def cmd_start(message: Message) -> None:
     """Handle /start command - auto-detect language or ask."""
     user_id = message.from_user.id
     
-    # Auto-detect from Telegram settings
+    # Auto-detect from Telegram settings and save to DB
     detected = detect_language(message.from_user.language_code)
-    set_user_lang(user_id, detected)
+    await db.set_user_lang(user_id, detected)
+    set_user_lang(user_id, detected)  # Also cache in memory
     
     await message.answer(
         t(user_id, "welcome"),
@@ -41,7 +43,8 @@ async def cmd_start(message: Message) -> None:
 async def handle_lang_choice(callback: CallbackQuery, callback_data: LangCallback) -> None:
     """Handle language selection."""
     user_id = callback.from_user.id
-    set_user_lang(user_id, callback_data.code)
+    await db.set_user_lang(user_id, callback_data.code)
+    set_user_lang(user_id, callback_data.code)  # Also cache in memory
     
     await callback.answer(t(user_id, "lang_changed"))
     await callback.message.edit_text(

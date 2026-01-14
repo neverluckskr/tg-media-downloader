@@ -1,12 +1,9 @@
 """Internationalization system for the bot."""
 from typing import Optional
-from pathlib import Path
-import json
 
-# User language storage (in production use Redis/DB)
+# In-memory cache (DB is primary storage)
 _user_languages: dict[int, str] = {}
 
-# Default language
 DEFAULT_LANG = "ru"
 
 # Translations
@@ -57,6 +54,22 @@ TRANSLATIONS = {
         
         # Language
         "lang_changed": "🇷🇺 Русский",
+        
+        # Rate limit
+        "rate_limit": "⏳ Подожди минуту",
+        
+        # Search
+        "search_usage": "🔍 <code>/search название</code>",
+        "searching": "🔍",
+        "no_results": "Ничего не найдено",
+        "search_error": "❌ Ошибка поиска",
+        
+        # History
+        "history_empty": "История пуста",
+        "history_title": "📜 <b>История:</b>",
+        
+        # Stats
+        "stats_title": "📊 <b>Статистика</b>",
     },
     "en": {
         # Start & Help
@@ -104,6 +117,22 @@ TRANSLATIONS = {
         
         # Language
         "lang_changed": "🇬🇧 English",
+        
+        # Rate limit
+        "rate_limit": "⏳ Wait a minute",
+        
+        # Search
+        "search_usage": "🔍 <code>/search query</code>",
+        "searching": "🔍",
+        "no_results": "No results found",
+        "search_error": "❌ Search error",
+        
+        # History
+        "history_empty": "History is empty",
+        "history_title": "📜 <b>History:</b>",
+        
+        # Stats
+        "stats_title": "📊 <b>Stats</b>",
     }
 }
 

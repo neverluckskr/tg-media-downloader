@@ -11,6 +11,9 @@ from app.config import config
 from app.handlers import common
 from app.handlers.download import bot_router as download_router
 from app.handlers.mp3tools import router as mp3tools_router
+from app.handlers.search import router as search_router
+from app.handlers.history import router as history_router
+from app.handlers.inline import router as inline_router
 
 
 async def main() -> None:
@@ -25,6 +28,9 @@ async def main() -> None:
     
     # Register routers
     dp.include_router(common.router)
+    dp.include_router(search_router)
+    dp.include_router(history_router)
+    dp.include_router(inline_router)
     dp.include_router(mp3tools_router)
     dp.include_router(download_router)
     
