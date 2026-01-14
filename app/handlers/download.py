@@ -29,6 +29,7 @@ def get_url_pattern() -> str:
         r"https?://(?:www\.)?"
         r"(?:"
         r"soundcloud\.com/[\w-]+/[\w-]+|"
+        r"on\.soundcloud\.com/[\w]+|"
         r"(?:tiktok\.com/@[\w.-]+/video/\d+|vm\.tiktok\.com/[\w]+|vt\.tiktok\.com/[\w]+)"
         r")"
     )

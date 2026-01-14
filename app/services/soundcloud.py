@@ -10,7 +10,7 @@ from app.config import config
 
 class SoundCloudDownloader(BaseDownloader):
     PLATFORM = "soundcloud"
-    URL_PATTERN = r"https?://(?:www\.)?soundcloud\.com/[\w-]+/[\w-]+"
+    URL_PATTERN = r"https?://(?:www\.)?(?:soundcloud\.com/[\w-]+/[\w-]+|on\.soundcloud\.com/[\w]+)"
     
     async def get_metadata(self, url: str) -> dict:
         """Extract metadata including artwork URL using yt-dlp."""
