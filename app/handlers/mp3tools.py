@@ -43,6 +43,13 @@ def get_mp3tools_keyboard(file_id: str) -> InlineKeyboardBuilder:
     return builder
 
 
+def get_back_keyboard(file_id: str) -> InlineKeyboardBuilder:
+    """Back button keyboard."""
+    builder = InlineKeyboardBuilder()
+    builder.button(text="⬅️ Назад", callback_data=MP3ToolsCallback(action="back", file_id=file_id))
+    return builder
+
+
 @router.message(Command("mp3tools"))
 async def cmd_mp3tools(message: Message, state: FSMContext) -> None:
     """Start MP3 Tools - ask for MP3 file."""
@@ -86,6 +93,35 @@ async def cmd_cancel(message: Message, state: FSMContext) -> None:
     await message.answer("❌ Отменено.")
 
 
+# ============ BACK ============
+
+@router.callback_query(MP3ToolsCallback.filter(F.action == "back"))
+async def handle_back(callback: CallbackQuery, callback_data: MP3ToolsCallback, state: FSMContext) -> None:
+    """Go back to main menu."""
+    await state.clear()
+    
+    file_path = _file_storage.get(callback_data.file_id)
+    if not file_path or not file_path.exists():
+        await callback.answer("Файл не найден", show_alert=True)
+        return
+    
+    tags = await mp3tools.get_tags(file_path)
+    
+    await callback.answer()
+    try:
+        await callback.message.edit_text(
+            f"{tags.title or 'Трек'} — {tags.artist or 'Артист'}",
+            reply_markup=get_mp3tools_keyboard(callback_data.file_id).as_markup()
+        )
+    except:
+        # If message is photo, delete and send new text
+        await callback.message.delete()
+        await callback.message.answer(
+            f"{tags.title or 'Трек'} — {tags.artist or 'Артист'}",
+            reply_markup=get_mp3tools_keyboard(callback_data.file_id).as_markup()
+        )
+
+
 # ============ EDIT: Title -> Artist ============
 
 @router.callback_query(MP3ToolsCallback.filter(F.action == "edit"))
@@ -95,7 +131,10 @@ async def handle_edit(callback: CallbackQuery, callback_data: MP3ToolsCallback, 
     await state.update_data(file_id=callback_data.file_id)
     
     await callback.answer()
-    await callback.message.edit_text("Название трека:")
+    await callback.message.edit_text(
+        "Название трека:",
+        reply_markup=get_back_keyboard(callback_data.file_id).as_markup()
+    )
 
 
 @router.message(MP3States.waiting_for_title, F.text)
@@ -110,7 +149,9 @@ async def handle_title_input(message: Message, state: FSMContext) -> None:
     await state.update_data(title=title)
     await state.set_state(MP3States.waiting_for_artist)
     
-    await message.answer("Автор:")
+    data = await state.get_data()
+    file_id = data.get("file_id")
+    await message.answer("Автор:", reply_markup=get_back_keyboard(file_id).as_markup())
 
 
 @router.message(MP3States.waiting_for_artist, F.text)
@@ -172,11 +213,15 @@ async def handle_album_art(callback: CallbackQuery, callback_data: MP3ToolsCallb
     if art_data:
         await callback.message.answer_photo(
             photo=BufferedInputFile(art_data, filename="cover.jpg"),
-            caption="Кидай новую обложку или /cancel"
+            caption="Кидай новую обложку",
+            reply_markup=get_back_keyboard(callback_data.file_id).as_markup()
         )
         await callback.message.delete()
     else:
-        await callback.message.edit_text("Кидай обложку или /cancel")
+        await callback.message.edit_text(
+            "Кидай обложку",
+            reply_markup=get_back_keyboard(callback_data.file_id).as_markup()
+        )
 
 
 @router.message(MP3States.waiting_for_art, F.photo)
