@@ -65,8 +65,17 @@ class SoundCloudDownloader(BaseDownloader):
             return MediaResult(success=False, error=error)
         
         unique_id = file_path.name.split("_")[0]
-        title = metadata.get("title") or extract_title_from_path(file_path, unique_id)
-        artist = metadata.get("uploader") or "SoundCloud"
+        raw_title = metadata.get("title") or extract_title_from_path(file_path, unique_id)
+        
+        # Parse "Artist — Track" or "Artist - Track" format from title
+        artist = "Unknown"
+        title = raw_title
+        for separator in [" — ", " - ", " – "]:
+            if separator in raw_title:
+                parts = raw_title.split(separator, 1)
+                artist = parts[0].strip()
+                title = parts[1].strip()
+                break
         
         # Download and embed artwork
         artwork_url = metadata.get("thumbnail")
