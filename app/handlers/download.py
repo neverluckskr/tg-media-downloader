@@ -1,7 +1,7 @@
 import re
 import uuid
 from aiogram import Router, F
-from aiogram.types import Message, FSInputFile, CallbackQuery, BufferedInputFile
+from aiogram.types import Message, FSInputFile, CallbackQuery
 from aiogram.enums import ChatAction
 from aiogram.filters.callback_data import CallbackData
 from aiogram.utils.keyboard import InlineKeyboardBuilder
@@ -65,9 +65,8 @@ async def handle_media_link(message: Message) -> None:
     builder.adjust(2)
     
     await message.answer(
-        f"📥 <b>TikTok</b>\n\nВыбери формат:",
-        reply_markup=builder.as_markup(),
-        parse_mode="HTML"
+        "🎵 или 🎬 ?",
+        reply_markup=builder.as_markup()
     )
 
 
@@ -122,7 +121,6 @@ async def process_download(message: Message, url: str, media_type: str, platform
                 title=result.title,
                 performer=result.author,
                 duration=result.duration,
-                caption=f"🎵 {result.author} — {result.title}",
                 thumbnail=thumbnail
             )
             
@@ -130,26 +128,14 @@ async def process_download(message: Message, url: str, media_type: str, platform
             if thumb_path and thumb_path.exists():
                 thumb_path.unlink()
             
-            # For SoundCloud: show album art and MP3 Tools after sending
+            # For SoundCloud: offer MP3 Tools
             if platform == "soundcloud":
                 file_id = uuid.uuid4().hex[:8]
                 _file_storage[file_id] = result.file_path
                 
-                await status_msg.delete()
-                
-                # Show album art (get original, not resized)
-                art_data = await mp3tools.get_album_art(result.file_path)
-                if art_data:
-                    await message.answer_photo(
-                        photo=BufferedInputFile(art_data, filename="cover.jpg"),
-                        caption="🖼 <b>Album Art</b>",
-                        parse_mode="HTML"
-                    )
-                
-                await message.answer(
-                    "🛠 <b>MP3 Tools</b>\n\nРедактировать трек?",
-                    reply_markup=get_mp3tools_keyboard(file_id).as_markup(),
-                    parse_mode="HTML"
+                await status_msg.edit_text(
+                    "✏️ Редактировать?",
+                    reply_markup=get_mp3tools_keyboard(file_id).as_markup()
                 )
                 return  # Don't cleanup - file is now managed by mp3tools
         else:
@@ -158,8 +144,7 @@ async def process_download(message: Message, url: str, media_type: str, platform
                 filename=f"{result.title}.mp4"
             )
             await message.answer_video(
-                video=video_file,
-                caption=f"🎬 {result.author} — {result.title}"
+                video=video_file
             )
         
         await status_msg.delete()

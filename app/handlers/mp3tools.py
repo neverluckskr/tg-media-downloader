@@ -35,10 +35,10 @@ _file_storage: dict[str, Path] = {}
 def get_mp3tools_keyboard(file_id: str) -> InlineKeyboardBuilder:
     """Keyboard after SoundCloud download."""
     builder = InlineKeyboardBuilder()
-    builder.button(text="✏️ Редактировать", callback_data=MP3ToolsCallback(action="edit", file_id=file_id))
-    builder.button(text="🖼 Album Art", callback_data=MP3ToolsCallback(action="album_art", file_id=file_id))
-    builder.button(text="💾 Сохранить", callback_data=MP3ToolsCallback(action="save", file_id=file_id))
-    builder.button(text="❌ Отмена", callback_data=MP3ToolsCallback(action="cancel", file_id=file_id))
+    builder.button(text="✏️ Теги", callback_data=MP3ToolsCallback(action="edit", file_id=file_id))
+    builder.button(text="🖼 Обложка", callback_data=MP3ToolsCallback(action="album_art", file_id=file_id))
+    builder.button(text="💾 Готово", callback_data=MP3ToolsCallback(action="save", file_id=file_id))
+    builder.button(text="✖️", callback_data=MP3ToolsCallback(action="cancel", file_id=file_id))
     builder.adjust(2, 2)
     return builder
 
@@ -47,11 +47,7 @@ def get_mp3tools_keyboard(file_id: str) -> InlineKeyboardBuilder:
 async def cmd_mp3tools(message: Message, state: FSMContext) -> None:
     """Start MP3 Tools - ask for MP3 file."""
     await state.set_state(MP3States.waiting_for_mp3)
-    await message.answer(
-        "🎵 <b>MP3 Tools</b>\n\n"
-        "Отправь мне MP3 файл для редактирования.",
-        parse_mode="HTML"
-    )
+    await message.answer("🎵 Кидай MP3")
 
 
 @router.message(MP3States.waiting_for_mp3, F.audio)
@@ -78,12 +74,8 @@ async def handle_mp3_upload(message: Message, state: FSMContext) -> None:
     tags = await mp3tools.get_tags(file_path)
     
     await status.edit_text(
-        f"🎵 <b>MP3 Tools</b>\n\n"
-        f"<b>Title:</b> {tags.title or '—'}\n"
-        f"<b>Artist:</b> {tags.artist or '—'}\n\n"
-        f"Выбери действие:",
-        reply_markup=get_mp3tools_keyboard(file_id).as_markup(),
-        parse_mode="HTML"
+        f"{tags.title or 'Трек'} — {tags.artist or 'Артист'}",
+        reply_markup=get_mp3tools_keyboard(file_id).as_markup()
     )
 
 
@@ -103,13 +95,7 @@ async def handle_edit(callback: CallbackQuery, callback_data: MP3ToolsCallback, 
     await state.update_data(file_id=callback_data.file_id)
     
     await callback.answer()
-    await callback.message.edit_text(
-        "✏️ <b>Редактирование</b>\n\n"
-        "Напиши <b>название трека</b>:\n"
-        "(например: Карты)\n\n"
-        "/cancel — отмена",
-        parse_mode="HTML"
-    )
+    await callback.message.edit_text("Название трека:")
 
 
 @router.message(MP3States.waiting_for_title, F.text)
@@ -124,13 +110,7 @@ async def handle_title_input(message: Message, state: FSMContext) -> None:
     await state.update_data(title=title)
     await state.set_state(MP3States.waiting_for_artist)
     
-    await message.answer(
-        f"✅ Название: <b>{title}</b>\n\n"
-        "Теперь напиши <b>автора</b>:\n"
-        "(например: GATASKI & Whole Lotta Swag)\n\n"
-        "/cancel — отмена",
-        parse_mode="HTML"
-    )
+    await message.answer("Автор:")
 
 
 @router.message(MP3States.waiting_for_artist, F.text)
@@ -161,16 +141,12 @@ async def handle_artist_input(message: Message, state: FSMContext) -> None:
     
     if success:
         await message.answer(
-            f"✅ Теги сохранены!\n\n"
-            f"<b>Title:</b> {title}\n"
-            f"<b>Artist:</b> {artist}\n\n"
-            f"Выбери действие:",
-            reply_markup=get_mp3tools_keyboard(file_id).as_markup(),
-            parse_mode="HTML"
+            f"✅ {title} — {artist}",
+            reply_markup=get_mp3tools_keyboard(file_id).as_markup()
         )
     else:
         await message.answer(
-            "❌ Ошибка при сохранении тегов.",
+            "❌ Ошибка",
             reply_markup=get_mp3tools_keyboard(file_id).as_markup()
         )
 
@@ -196,21 +172,11 @@ async def handle_album_art(callback: CallbackQuery, callback_data: MP3ToolsCallb
     if art_data:
         await callback.message.answer_photo(
             photo=BufferedInputFile(art_data, filename="cover.jpg"),
-            caption="🖼 <b>Текущая обложка</b>\n\n"
-                    "Отправь новое фото для замены\n"
-                    "/delete_art — удалить обложку\n"
-                    "/cancel — отмена",
-            parse_mode="HTML"
+            caption="Кидай новую обложку или /cancel"
         )
         await callback.message.delete()
     else:
-        await callback.message.edit_text(
-            "🖼 <b>Album Art</b>\n\n"
-            "Обложка отсутствует.\n\n"
-            "Отправь фото для установки\n"
-            "/cancel — отмена",
-            parse_mode="HTML"
-        )
+        await callback.message.edit_text("Кидай обложку или /cancel")
 
 
 @router.message(MP3States.waiting_for_art, F.photo)
@@ -238,15 +204,9 @@ async def handle_art_upload(message: Message, state: FSMContext) -> None:
     await state.clear()
     
     if success:
-        await message.answer(
-            "✅ Обложка обновлена!",
-            reply_markup=get_mp3tools_keyboard(file_id).as_markup()
-        )
+        await message.answer("✅", reply_markup=get_mp3tools_keyboard(file_id).as_markup())
     else:
-        await message.answer(
-            "❌ Ошибка при сохранении обложки.",
-            reply_markup=get_mp3tools_keyboard(file_id).as_markup()
-        )
+        await message.answer("❌", reply_markup=get_mp3tools_keyboard(file_id).as_markup())
 
 
 @router.message(MP3States.waiting_for_art, Command("delete_art"))
@@ -266,15 +226,9 @@ async def handle_delete_art(message: Message, state: FSMContext) -> None:
     await state.clear()
     
     if success:
-        await message.answer(
-            "✅ Обложка удалена!",
-            reply_markup=get_mp3tools_keyboard(file_id).as_markup()
-        )
+        await message.answer("✅", reply_markup=get_mp3tools_keyboard(file_id).as_markup())
     else:
-        await message.answer(
-            "❌ Ошибка при удалении обложки.",
-            reply_markup=get_mp3tools_keyboard(file_id).as_markup()
-        )
+        await message.answer("❌", reply_markup=get_mp3tools_keyboard(file_id).as_markup())
 
 
 # ============ SAVE & CANCEL ============
@@ -334,4 +288,4 @@ async def handle_cancel(callback: CallbackQuery, callback_data: MP3ToolsCallback
     
     await state.clear()
     await callback.answer()
-    await callback.message.edit_text("❌ Отменено. Файл удалён.")
+    await callback.message.delete()
