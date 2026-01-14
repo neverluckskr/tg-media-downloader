@@ -99,7 +99,17 @@ async def cmd_help(message: Message) -> None:
 
 @router.message(lambda m: m.text in ["🔍 Поиск", "🔍 Search"])
 async def btn_search(message: Message) -> None:
-    await message.answer(t(message.from_user.id, "search_usage"), parse_mode="HTML")
+    from aiogram.fsm.context import FSMContext
+    user_id = message.from_user.id
+    lang = t(user_id, "lang_changed")
+    is_ru = "Русский" in lang
+    
+    if is_ru:
+        text = "🔎 <b>Поиск</b>\n\nИсточник: 🟠 SoundCloud\n\nВведи запрос:"
+    else:
+        text = "🔎 <b>Search</b>\n\nSource: 🟠 SoundCloud\n\nEnter your query:"
+    
+    await message.answer(text, parse_mode="HTML")
 
 
 @router.message(lambda m: m.text in ["📜 История", "📜 History"])
