@@ -97,10 +97,16 @@ class MP3ToolsService:
         """Set album art on MP3 file."""
         def _set_art():
             try:
-                try:
-                    audio = ID3(file_path)
-                except ID3NoHeaderError:
-                    audio = ID3()
+                from mutagen.mp3 import MP3
+                
+                # Ensure file has ID3 tags
+                audio_file = MP3(file_path)
+                if audio_file.tags is None:
+                    audio_file.add_tags()
+                    audio_file.save()
+                
+                # Now load ID3 and add artwork
+                audio = ID3(file_path)
                 
                 # Remove existing album art
                 audio.delall("APIC")
@@ -114,9 +120,10 @@ class MP3ToolsService:
                     data=image_data
                 )
                 
-                audio.save(file_path)
+                audio.save(file_path, v2_version=3)
                 return True
-            except Exception:
+            except Exception as e:
+                print(f"Error setting album art: {e}")
                 return False
         
         return await asyncio.to_thread(_set_art)
