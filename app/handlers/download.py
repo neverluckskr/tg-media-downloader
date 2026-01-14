@@ -10,6 +10,7 @@ from app.services.router import router as download_router
 from app.services.base import BaseDownloader
 from app.services.mp3tools import mp3tools
 from app.handlers.mp3tools import _file_storage, get_mp3tools_keyboard
+from app.i18n import t
 
 
 class MediaTypeCallback(CallbackData, prefix="media"):
@@ -53,20 +54,21 @@ async def handle_media_link(message: Message) -> None:
     
     # Audio-only platforms
     if platform == "soundcloud":
-        await process_download(message, url, "audio", platform="soundcloud")
+        await process_download(message, url, "audio", platform="soundcloud", user_id=message.from_user.id)
         return
     
     # TikTok - offer choice
     url_hash = str(hash(url))[-8:]
     _pending_urls[url_hash] = url
     
+    user_id = message.from_user.id
     builder = InlineKeyboardBuilder()
-    builder.button(text="🎵 Audio", callback_data=MediaTypeCallback(action="audio", url_hash=url_hash))
-    builder.button(text="🎬 Video", callback_data=MediaTypeCallback(action="video", url_hash=url_hash))
+    builder.button(text=t(user_id, "btn_audio"), callback_data=MediaTypeCallback(action="audio", url_hash=url_hash))
+    builder.button(text=t(user_id, "btn_video"), callback_data=MediaTypeCallback(action="video", url_hash=url_hash))
     builder.adjust(2)
     
     await message.answer(
-        "🎵 или 🎬 ?",
+        t(user_id, "format_choice"),
         reply_markup=builder.as_markup()
     )
 
@@ -77,17 +79,17 @@ async def handle_media_type_callback(callback: CallbackQuery, callback_data: Med
     url = _pending_urls.pop(callback_data.url_hash, None)
     
     if not url:
-        await callback.answer("Ссылка устарела, отправь заново", show_alert=True)
+        await callback.answer(t(callback.from_user.id, "link_expired"), show_alert=True)
         return
     
     await callback.answer()
     await callback.message.delete()
-    await process_download(callback.message, url, callback_data.action)
+    await process_download(callback.message, url, callback_data.action, user_id=callback.from_user.id)
 
 
-async def process_download(message: Message, url: str, media_type: str, platform: str = "") -> None:
+async def process_download(message: Message, url: str, media_type: str, platform: str = "", user_id: int = 0) -> None:
     """Download and send media."""
-    status_msg = await message.answer("⏳ Скачиваю...")
+    status_msg = await message.answer(t(user_id, "downloading"))
     
     action = ChatAction.UPLOAD_VOICE if media_type == "audio" else ChatAction.UPLOAD_VIDEO
     await message.bot.send_chat_action(chat_id=message.chat.id, action=action)
@@ -135,8 +137,8 @@ async def process_download(message: Message, url: str, media_type: str, platform
                 _file_storage[file_id] = result.file_path
                 
                 await status_msg.edit_text(
-                    "✏️ Редактировать?",
-                    reply_markup=get_mp3tools_keyboard(file_id).as_markup()
+                    t(user_id, "edit_prompt"),
+                    reply_markup=get_mp3tools_keyboard(file_id, user_id).as_markup()
                 )
                 return  # Don't cleanup - file is now managed by mp3tools
         else:
@@ -151,7 +153,7 @@ async def process_download(message: Message, url: str, media_type: str, platform
         await status_msg.delete()
         
     except Exception as e:
-        await status_msg.edit_text(f"❌ Ошибка отправки: {str(e)[:100]}")
+        await status_msg.edit_text(f"{t(user_id, 'error_send')}: {str(e)[:50]}")
     finally:
         # Cleanup only if not SoundCloud (which keeps file for editing)
         if platform != "soundcloud":
