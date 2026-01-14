@@ -1,13 +1,14 @@
 import re
 import uuid
 from aiogram import Router, F
-from aiogram.types import Message, FSInputFile, CallbackQuery
+from aiogram.types import Message, FSInputFile, CallbackQuery, BufferedInputFile
 from aiogram.enums import ChatAction
 from aiogram.filters.callback_data import CallbackData
 from aiogram.utils.keyboard import InlineKeyboardBuilder
 
 from app.services.router import router as download_router
 from app.services.base import BaseDownloader
+from app.services.mp3tools import mp3tools
 from app.handlers.mp3tools import _file_storage, get_mp3tools_keyboard
 
 
@@ -114,12 +115,22 @@ async def process_download(message: Message, url: str, media_type: str, platform
                 caption=f"🎵 {result.author} — {result.title}"
             )
             
-            # For SoundCloud: show MP3 Tools after sending
+            # For SoundCloud: show album art and MP3 Tools after sending
             if platform == "soundcloud":
                 file_id = uuid.uuid4().hex[:8]
                 _file_storage[file_id] = result.file_path
                 
                 await status_msg.delete()
+                
+                # Get and show album art
+                art_data = await mp3tools.get_album_art(result.file_path)
+                if art_data:
+                    await message.answer_photo(
+                        photo=BufferedInputFile(art_data, filename="cover.jpg"),
+                        caption="🖼 <b>Album Art</b>",
+                        parse_mode="HTML"
+                    )
+                
                 await message.answer(
                     "🛠 <b>MP3 Tools</b>\n\nРедактировать трек?",
                     reply_markup=get_mp3tools_keyboard(file_id).as_markup(),
