@@ -276,6 +276,7 @@ async def handle_save(callback: CallbackQuery, callback_data: MP3ToolsCallback) 
     await callback.answer()
     await callback.message.edit_text("⏳ Отправляю файл...")
     
+    thumb_path = None
     try:
         tags = await mp3tools.get_tags(file_path)
         art_data = await mp3tools.get_album_art(file_path)
@@ -285,8 +286,12 @@ async def handle_save(callback: CallbackQuery, callback_data: MP3ToolsCallback) 
             filename=f"{tags.artist or 'Unknown'} - {tags.title or 'Unknown'}.mp3"
         )
         
-        # Telegram needs explicit thumbnail to show album art
-        thumbnail = BufferedInputFile(art_data, filename="cover.jpg") if art_data else None
+        # Save thumbnail to temp file (Telegram works better with file input)
+        thumbnail = None
+        if art_data:
+            thumb_path = file_path.parent / f"{callback_data.file_id}_thumb.jpg"
+            thumb_path.write_bytes(art_data)
+            thumbnail = FSInputFile(path=thumb_path)
         
         await callback.message.answer_audio(
             audio=audio_file,
@@ -300,6 +305,8 @@ async def handle_save(callback: CallbackQuery, callback_data: MP3ToolsCallback) 
     finally:
         if file_path.exists():
             file_path.unlink()
+        if thumb_path and thumb_path.exists():
+            thumb_path.unlink()
 
 
 @router.callback_query(MP3ToolsCallback.filter(F.action == "cancel"))
