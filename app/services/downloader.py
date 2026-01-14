@@ -1,11 +1,20 @@
 import asyncio
 import re
+import sys
 import uuid
 from pathlib import Path
 from dataclasses import dataclass
 from typing import Optional
 
 from app.config import config
+
+
+def get_ytdlp_path() -> str:
+    """Get yt-dlp executable path from current venv."""
+    venv_path = Path(sys.executable).parent / "yt-dlp"
+    if venv_path.exists():
+        return str(venv_path)
+    return "yt-dlp"
 
 
 @dataclass
@@ -41,7 +50,7 @@ class SoundCloudDownloader:
         output_template = str(self.download_dir / f"%(title)s_{unique_id}.%(ext)s")
         
         cmd = [
-            "yt-dlp",
+            get_ytdlp_path(),
             "--no-playlist",
             "--extract-audio",
             "--audio-format", "mp3",
