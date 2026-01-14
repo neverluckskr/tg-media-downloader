@@ -1,5 +1,7 @@
 import re
 import uuid
+import logging
+import traceback
 from aiogram import Router, F
 from aiogram.types import Message, FSInputFile, CallbackQuery
 from aiogram.enums import ChatAction
@@ -12,6 +14,9 @@ from app.services.mp3tools import mp3tools
 from app.handlers.mp3tools import _file_storage, get_mp3tools_keyboard
 from app.i18n import t
 from app.database import db
+from app.config import config
+
+logger = logging.getLogger(__name__)
 
 
 class MediaTypeCallback(CallbackData, prefix="media"):
@@ -32,9 +37,26 @@ def get_url_pattern() -> str:
         r"(?:"
         r"soundcloud\.com/[\w-]+/[\w-]+|"
         r"on\.soundcloud\.com/[\w]+|"
-        r"(?:tiktok\.com/@[\w.-]+/video/\d+|vm\.tiktok\.com/[\w]+|vt\.tiktok\.com/[\w]+)"
+        r"tiktok\.com/@[\w.-]+/(?:video|photo)/\d+|"
+        r"vm\.tiktok\.com/[\w]+|"
+        r"vt\.tiktok\.com/[\w]+"
         r")"
     )
+
+
+async def notify_owner(bot, error: str, user_id: int, url: str):
+    """Send error notification to bot owner."""
+    try:
+        await bot.send_message(
+            config.OWNER_ID,
+            f"⚠️ <b>Error</b>\n\n"
+            f"User: <code>{user_id}</code>\n"
+            f"URL: <code>{url[:100]}</code>\n\n"
+            f"<pre>{error[:500]}</pre>",
+            parse_mode="HTML"
+        )
+    except Exception:
+        pass
 
 
 URL_PATTERN = get_url_pattern()
@@ -97,21 +119,39 @@ async def handle_media_type_callback(callback: CallbackQuery, callback_data: Med
 
 async def process_download(message: Message, url: str, media_type: str, platform: str = "", user_id: int = 0) -> None:
     """Download and send media."""
-    status_msg = await message.answer(t(user_id, "downloading"))
+    status_msg = await message.answer("⏳ 0%")
+    
+    async def update_progress(percent: int):
+        try:
+            await status_msg.edit_text(f"⏳ {percent}%")
+        except Exception:
+            pass
+    
+    await update_progress(10)
     
     action = ChatAction.UPLOAD_VOICE if media_type == "audio" else ChatAction.UPLOAD_VIDEO
     await message.bot.send_chat_action(chat_id=message.chat.id, action=action)
     
+    await update_progress(20)
+    
     result = await download_router.download(url, media_type)
     
+    await update_progress(60)
+    
     if not result.success:
-        await status_msg.edit_text(f"❌ {result.error}")
+        error_msg = result.error or "Unknown error"
+        await status_msg.edit_text(f"❌ {error_msg[:200]}")
+        await notify_owner(message.bot, error_msg, user_id, url)
+        logger.error(f"Download failed: {error_msg} | URL: {url}")
         return
+    
+    await update_progress(70)
     
     # Save to history
     await db.add_download(user_id, platform or "unknown", url, result.title, result.author)
     
     try:
+        await update_progress(80)
         await message.bot.send_chat_action(chat_id=message.chat.id, action=ChatAction.UPLOAD_DOCUMENT)
         
         if result.media_type == "audio":
@@ -164,7 +204,10 @@ async def process_download(message: Message, url: str, media_type: str, platform
         await status_msg.delete()
         
     except Exception as e:
-        await status_msg.edit_text(f"{t(user_id, 'error_send')}: {str(e)[:50]}")
+        error_msg = str(e)
+        await status_msg.edit_text(f"❌ {error_msg[:100]}")
+        await notify_owner(message.bot, f"{error_msg}\n\n{traceback.format_exc()}", user_id, url)
+        logger.error(f"Send failed: {error_msg} | URL: {url}")
     finally:
         # Cleanup only if not SoundCloud (which keeps file for editing)
         if platform != "soundcloud":

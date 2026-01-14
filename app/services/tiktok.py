@@ -5,7 +5,7 @@ from app.config import config
 
 class TikTokDownloader(BaseDownloader):
     PLATFORM = "tiktok"
-    URL_PATTERN = r"https?://(?:www\.)?(?:tiktok\.com/@[\w.-]+/video/\d+|vm\.tiktok\.com/[\w]+|vt\.tiktok\.com/[\w]+)"
+    URL_PATTERN = r"https?://(?:www\.)?(?:tiktok\.com/@[\w.-]+/(?:video|photo)/\d+|vm\.tiktok\.com/[\w]+|vt\.tiktok\.com/[\w]+)"
     
     async def download(self, url: str, media_type: str = "video") -> MediaResult:
         extract_audio = media_type == "audio"
