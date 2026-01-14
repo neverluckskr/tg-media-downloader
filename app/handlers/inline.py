@@ -1,48 +1,12 @@
 """Inline mode handler - @bot query in any chat."""
-import asyncio
-import json
 import hashlib
 from aiogram import Router
-from aiogram.types import InlineQuery, InlineQueryResultArticle, InputTextMessageContent
+from aiogram.types import InlineQuery, InlineQueryResultArticle, InputTextMessageContent, InlineQueryResultAudio
 
-from app.services.ytdlp_wrapper import get_ytdlp_path
+from app.handlers.search import search_soundcloud
+from app.database import db
 
 router = Router(name="inline")
-
-
-async def search_soundcloud(query: str, limit: int = 5) -> list[dict]:
-    """Search SoundCloud using yt-dlp."""
-    cmd = [
-        get_ytdlp_path(),
-        "--dump-json",
-        "--flat-playlist",
-        "--no-download",
-        f"scsearch{limit}:{query}"
-    ]
-    
-    process = await asyncio.create_subprocess_exec(
-        *cmd,
-        stdout=asyncio.subprocess.PIPE,
-        stderr=asyncio.subprocess.PIPE
-    )
-    
-    stdout, _ = await process.communicate()
-    
-    results = []
-    for line in stdout.decode().strip().split('\n'):
-        if line:
-            try:
-                data = json.loads(line)
-                results.append({
-                    "title": data.get("title", "Unknown"),
-                    "url": data.get("url") or data.get("webpage_url", ""),
-                    "uploader": data.get("uploader", "Unknown"),
-                    "duration": data.get("duration", 0)
-                })
-            except json.JSONDecodeError:
-                continue
-    
-    return results
 
 
 @router.inline_query()
@@ -51,29 +15,56 @@ async def handle_inline_query(inline_query: InlineQuery) -> None:
     query = inline_query.query.strip()
     
     if len(query) < 2:
+        # Show hint
+        await inline_query.answer(
+            [],
+            switch_pm_text="🔎 Введите название трека",
+            switch_pm_parameter="search",
+            cache_time=5
+        )
         return
     
     try:
-        results = await search_soundcloud(query, limit=10)
+        results = await search_soundcloud(query, limit=15)
         
         articles = []
         for r in results:
-            duration = f"{r['duration'] // 60}:{r['duration'] % 60:02d}" if r['duration'] else "?"
+            dur = r.get('duration') or 0
+            if dur:
+                duration = f"{int(dur) // 60}:{int(dur) % 60:02d}"
+            else:
+                duration = "?"
+            
             result_id = hashlib.md5(r['url'].encode()).hexdigest()[:16]
             
-            articles.append(
-                InlineQueryResultArticle(
-                    id=result_id,
-                    title=r['title'],
-                    description=f"{r['uploader']} • {duration}",
-                    input_message_content=InputTextMessageContent(
-                        message_text=r['url']
-                    ),
-                    thumbnail_url="https://soundcloud.com/favicon.ico"
+            # Check if we have cached audio
+            cached = await db.get_cached_file(r['url'])
+            
+            if cached and cached.get('file_id'):
+                # Send cached audio directly
+                articles.append(
+                    InlineQueryResultAudio(
+                        id=result_id,
+                        audio_file_id=cached['file_id'],
+                        title=r['title'],
+                        performer=r['uploader']
+                    )
                 )
-            )
+            else:
+                # Send link (user will need to download via bot)
+                articles.append(
+                    InlineQueryResultArticle(
+                        id=result_id,
+                        title=f"🎵 {r['title']}",
+                        description=f"{r['uploader']} • {duration}",
+                        input_message_content=InputTextMessageContent(
+                            message_text=r['url']
+                        ),
+                        thumbnail_url="https://a-v2.sndcdn.com/assets/images/sc-icons/favicon-2cadd14bdb.ico"
+                    )
+                )
         
-        await inline_query.answer(articles, cache_time=60)
+        await inline_query.answer(articles, cache_time=30, is_personal=True)
         
     except Exception:
         await inline_query.answer([], cache_time=10)
