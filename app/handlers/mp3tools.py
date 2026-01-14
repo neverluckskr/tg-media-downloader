@@ -101,25 +101,31 @@ async def handle_back(callback: CallbackQuery, callback_data: MP3ToolsCallback, 
     await state.clear()
     
     file_path = _file_storage.get(callback_data.file_id)
-    if not file_path or not file_path.exists():
+    if not file_path:
         await callback.answer("Файл не найден", show_alert=True)
+        return
+    
+    if not file_path.exists():
+        await callback.answer("Файл удалён", show_alert=True)
         return
     
     tags = await mp3tools.get_tags(file_path)
     
     await callback.answer()
+    
+    # Delete current message (photo or text)
+    chat_id = callback.message.chat.id
     try:
-        await callback.message.edit_text(
-            f"{tags.title or 'Трек'} — {tags.artist or 'Артист'}",
-            reply_markup=get_mp3tools_keyboard(callback_data.file_id).as_markup()
-        )
-    except:
-        # If message is photo, delete and send new text
         await callback.message.delete()
-        await callback.message.answer(
-            f"{tags.title or 'Трек'} — {tags.artist or 'Артист'}",
-            reply_markup=get_mp3tools_keyboard(callback_data.file_id).as_markup()
-        )
+    except:
+        pass
+    
+    # Send new text message
+    await callback.bot.send_message(
+        chat_id=chat_id,
+        text=f"{tags.title or 'Трек'} — {tags.artist or 'Артист'}",
+        reply_markup=get_mp3tools_keyboard(callback_data.file_id).as_markup()
+    )
 
 
 # ============ EDIT: Title -> Artist ============
