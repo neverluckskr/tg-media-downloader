@@ -108,13 +108,13 @@ async def process_download(message: Message, url: str, media_type: str, platform
                 filename=f"{result.author} - {result.title}{ext}"
             )
             
-            # Get album art for thumbnail (Telegram needs explicit thumbnail as file)
-            art_data = await mp3tools.get_album_art(result.file_path) if platform == "soundcloud" else None
+            # Get resized thumbnail for Telegram (320x320 JPEG)
+            thumb_data = await mp3tools.get_thumbnail_for_telegram(result.file_path) if platform == "soundcloud" else None
             thumbnail = None
             thumb_path = None
-            if art_data:
+            if thumb_data:
                 thumb_path = result.file_path.parent / f"{result.file_path.stem}_thumb.jpg"
-                thumb_path.write_bytes(art_data)
+                thumb_path.write_bytes(thumb_data)
                 thumbnail = FSInputFile(path=thumb_path)
             
             await message.answer_audio(
@@ -137,7 +137,8 @@ async def process_download(message: Message, url: str, media_type: str, platform
                 
                 await status_msg.delete()
                 
-                # Show album art
+                # Show album art (get original, not resized)
+                art_data = await mp3tools.get_album_art(result.file_path)
                 if art_data:
                     await message.answer_photo(
                         photo=BufferedInputFile(art_data, filename="cover.jpg"),

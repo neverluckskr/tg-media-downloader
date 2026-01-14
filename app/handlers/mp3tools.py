@@ -279,18 +279,18 @@ async def handle_save(callback: CallbackQuery, callback_data: MP3ToolsCallback) 
     thumb_path = None
     try:
         tags = await mp3tools.get_tags(file_path)
-        art_data = await mp3tools.get_album_art(file_path)
+        thumb_data = await mp3tools.get_thumbnail_for_telegram(file_path)
         
         audio_file = FSInputFile(
             path=file_path,
             filename=f"{tags.artist or 'Unknown'} - {tags.title or 'Unknown'}.mp3"
         )
         
-        # Save thumbnail to temp file (Telegram works better with file input)
+        # Save resized thumbnail to temp file
         thumbnail = None
-        if art_data:
+        if thumb_data:
             thumb_path = file_path.parent / f"{callback_data.file_id}_thumb.jpg"
-            thumb_path.write_bytes(art_data)
+            thumb_path.write_bytes(thumb_data)
             thumbnail = FSInputFile(path=thumb_path)
         
         await callback.message.answer_audio(

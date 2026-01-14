@@ -2,9 +2,11 @@ from pathlib import Path
 from typing import Optional
 from dataclasses import dataclass
 import asyncio
+from io import BytesIO
 
 from mutagen.mp3 import MP3
 from mutagen.id3 import ID3, TIT2, TPE1, TALB, TCON, TDRC, TRCK, APIC, ID3NoHeaderError
+from PIL import Image
 
 
 @dataclass
@@ -141,6 +143,31 @@ class MP3ToolsService:
                 return False
         
         return await asyncio.to_thread(_delete_art)
+    
+    @staticmethod
+    async def get_thumbnail_for_telegram(file_path: Path) -> Optional[bytes]:
+        """Get album art resized for Telegram (320x320 JPEG)."""
+        def _get_thumb():
+            try:
+                audio = ID3(file_path)
+                for key in audio.keys():
+                    if key.startswith("APIC"):
+                        img_data = audio[key].data
+                        
+                        # Open and resize image
+                        img = Image.open(BytesIO(img_data))
+                        img = img.convert("RGB")  # Ensure RGB for JPEG
+                        img.thumbnail((320, 320), Image.Resampling.LANCZOS)
+                        
+                        # Save as JPEG
+                        output = BytesIO()
+                        img.save(output, format="JPEG", quality=85)
+                        return output.getvalue()
+                return None
+            except Exception:
+                return None
+        
+        return await asyncio.to_thread(_get_thumb)
     
     @staticmethod
     def parse_tags_input(text: str) -> MP3Tags:
