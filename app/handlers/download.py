@@ -98,6 +98,11 @@ async def handle_media_link(message: Message) -> None:
         await process_download(message, url, "audio", platform="soundcloud", user_id=user_id)
         return
     
+    # TikTok photo posts not supported
+    if "/photo/" in url:
+        await message.answer("📷 TikTok photo posts not supported yet")
+        return
+    
     # TikTok - auto video by default (faster UX)
     await process_download(message, url, "video", platform="tiktok", user_id=user_id)
 
