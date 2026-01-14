@@ -101,7 +101,11 @@ async def cmd_search(message: Message) -> None:
         # Format results text
         text = "🔍 <b>SoundCloud:</b>\n\n"
         for i, r in enumerate(results, 1):
-            duration = f"{r['duration'] // 60}:{r['duration'] % 60:02d}" if r['duration'] else "?"
+            dur = r.get('duration') or 0
+            if dur:
+                duration = f"{int(dur) // 60}:{int(dur) % 60:02d}"
+            else:
+                duration = "?"
             text += f"{i}. <b>{r['title']}</b>\n   {r['uploader']} • {duration}\n\n"
         
         await status.edit_text(text, reply_markup=builder.as_markup(), parse_mode="HTML")
