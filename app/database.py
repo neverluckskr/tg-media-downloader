@@ -62,6 +62,16 @@ class Database:
             
             CREATE INDEX IF NOT EXISTS idx_downloads_user ON downloads(user_id);
             CREATE INDEX IF NOT EXISTS idx_downloads_date ON downloads(downloaded_at);
+            
+            CREATE TABLE IF NOT EXISTS file_cache (
+                url_hash TEXT PRIMARY KEY,
+                file_id TEXT NOT NULL,
+                file_type TEXT NOT NULL,
+                title TEXT,
+                artist TEXT,
+                duration INTEGER,
+                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+            );
         """)
         conn.commit()
     
@@ -198,6 +208,46 @@ class Database:
                 "today_downloads": today_downloads,
                 "popular_tracks": [(r["title"], r["artist"], r["cnt"]) for r in popular]
             }
+    
+    # ============ FILE CACHE ============
+    
+    async def get_cached_file(self, url: str) -> Optional[dict]:
+        """Get cached file_id for URL."""
+        import hashlib
+        url_hash = hashlib.md5(url.encode()).hexdigest()
+        
+        async with self._lock:
+            conn = self._get_conn()
+            row = conn.execute(
+                "SELECT file_id, file_type, title, artist, duration FROM file_cache WHERE url_hash = ?",
+                (url_hash,)
+            ).fetchone()
+            
+            if row:
+                return {
+                    "file_id": row["file_id"],
+                    "file_type": row["file_type"],
+                    "title": row["title"],
+                    "artist": row["artist"],
+                    "duration": row["duration"]
+                }
+            return None
+    
+    async def cache_file(self, url: str, file_id: str, file_type: str, title: str = "", artist: str = "", duration: int = 0):
+        """Cache file_id for URL."""
+        import hashlib
+        url_hash = hashlib.md5(url.encode()).hexdigest()
+        
+        async with self._lock:
+            conn = self._get_conn()
+            conn.execute("""
+                INSERT INTO file_cache (url_hash, file_id, file_type, title, artist, duration)
+                VALUES (?, ?, ?, ?, ?, ?)
+                ON CONFLICT(url_hash) DO UPDATE SET
+                    file_id = excluded.file_id,
+                    file_type = excluded.file_type
+            """, (url_hash, file_id, file_type, title, artist, duration))
+            conn.commit()
 
 
 # Global instance

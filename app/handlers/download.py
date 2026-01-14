@@ -19,6 +19,16 @@ from app.config import config
 logger = logging.getLogger(__name__)
 
 
+def sanitize_title(title: str, max_len: int = 60) -> str:
+    """Sanitize title: limit length, keep emoji safe."""
+    if not title:
+        return "Unknown"
+    title = title.strip()
+    if len(title) > max_len:
+        title = title[:max_len-3] + "..."
+    return title
+
+
 class MediaTypeCallback(CallbackData, prefix="media"):
     action: str
     url_hash: str
@@ -88,19 +98,8 @@ async def handle_media_link(message: Message) -> None:
         await process_download(message, url, "audio", platform="soundcloud", user_id=user_id)
         return
     
-    # TikTok - offer choice
-    url_hash = str(hash(url))[-8:]
-    _pending_urls[url_hash] = url
-    
-    builder = InlineKeyboardBuilder()
-    builder.button(text=t(user_id, "btn_audio"), callback_data=MediaTypeCallback(action="audio", url_hash=url_hash))
-    builder.button(text=t(user_id, "btn_video"), callback_data=MediaTypeCallback(action="video", url_hash=url_hash))
-    builder.adjust(2)
-    
-    await message.answer(
-        t(user_id, "format_choice"),
-        reply_markup=builder.as_markup()
-    )
+    # TikTok - auto video by default (faster UX)
+    await process_download(message, url, "video", platform="tiktok", user_id=user_id)
 
 
 @bot_router.callback_query(MediaTypeCallback.filter())
@@ -119,6 +118,24 @@ async def handle_media_type_callback(callback: CallbackQuery, callback_data: Med
 
 async def process_download(message: Message, url: str, media_type: str, platform: str = "", user_id: int = 0) -> None:
     """Download and send media."""
+    # Check cache first
+    cached = await db.get_cached_file(url)
+    if cached and cached["file_type"] == media_type:
+        try:
+            if media_type == "audio":
+                await message.answer_audio(
+                    audio=cached["file_id"],
+                    title=cached["title"],
+                    performer=cached["artist"],
+                    duration=cached["duration"]
+                )
+            else:
+                await message.answer_video(video=cached["file_id"])
+            await db.add_download(user_id, platform or "unknown", url, cached["title"], cached["artist"])
+            return
+        except Exception:
+            pass  # Cache invalid, re-download
+    
     status_msg = await message.answer("⏳ 0%")
     
     async def update_progress(percent: int):
@@ -156,9 +173,11 @@ async def process_download(message: Message, url: str, media_type: str, platform
         
         if result.media_type == "audio":
             ext = result.file_path.suffix or ".mp3"
+            safe_title = sanitize_title(result.title)
+            safe_author = sanitize_title(result.author, 40)
             audio_file = FSInputFile(
                 path=result.file_path,
-                filename=f"{result.author} - {result.title}{ext}"
+                filename=f"{safe_author} - {safe_title}{ext}"
             )
             
             # Get resized thumbnail for Telegram (320x320 JPEG)
@@ -170,13 +189,17 @@ async def process_download(message: Message, url: str, media_type: str, platform
                 thumb_path.write_bytes(thumb_data)
                 thumbnail = FSInputFile(path=thumb_path)
             
-            await message.answer_audio(
+            sent_msg = await message.answer_audio(
                 audio=audio_file,
                 title=result.title,
                 performer=result.author,
                 duration=result.duration,
                 thumbnail=thumbnail
             )
+            
+            # Cache file_id for instant future sends
+            if sent_msg.audio:
+                await db.cache_file(url, sent_msg.audio.file_id, "audio", result.title, result.author, result.duration or 0)
             
             # Cleanup thumbnail
             if thumb_path and thumb_path.exists():
@@ -193,13 +216,18 @@ async def process_download(message: Message, url: str, media_type: str, platform
                 )
                 return  # Don't cleanup - file is now managed by mp3tools
         else:
+            safe_title = sanitize_title(result.title)
             video_file = FSInputFile(
                 path=result.file_path,
-                filename=f"{result.title}.mp4"
+                filename=f"{safe_title}.mp4"
             )
-            await message.answer_video(
+            sent_msg = await message.answer_video(
                 video=video_file
             )
+            
+            # Cache video file_id
+            if sent_msg.video:
+                await db.cache_file(url, sent_msg.video.file_id, "video", result.title, result.author, result.duration or 0)
         
         await status_msg.delete()
         
