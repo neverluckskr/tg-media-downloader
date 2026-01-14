@@ -1,4 +1,5 @@
 import re
+import uuid
 from aiogram import Router, F
 from aiogram.types import Message, FSInputFile, CallbackQuery
 from aiogram.enums import ChatAction
@@ -7,6 +8,7 @@ from aiogram.utils.keyboard import InlineKeyboardBuilder
 
 from app.services.router import router as download_router
 from app.services.base import BaseDownloader
+from app.handlers.mp3tools import _file_storage, get_mp3tools_keyboard
 
 
 class MediaTypeCallback(CallbackData, prefix="media"):
@@ -49,7 +51,7 @@ async def handle_media_link(message: Message) -> None:
     
     # Audio-only platforms
     if platform == "soundcloud":
-        await process_download(message, url, "audio")
+        await process_download(message, url, "audio", platform="soundcloud")
         return
     
     # TikTok - offer choice
@@ -82,7 +84,7 @@ async def handle_media_type_callback(callback: CallbackQuery, callback_data: Med
     await process_download(callback.message, url, callback_data.action)
 
 
-async def process_download(message: Message, url: str, media_type: str) -> None:
+async def process_download(message: Message, url: str, media_type: str, platform: str = "") -> None:
     """Download and send media."""
     status_msg = await message.answer("⏳ Скачиваю...")
     
@@ -111,6 +113,19 @@ async def process_download(message: Message, url: str, media_type: str) -> None:
                 duration=result.duration,
                 caption=f"🎵 {result.author} — {result.title}"
             )
+            
+            # For SoundCloud: show MP3 Tools after sending
+            if platform == "soundcloud":
+                file_id = uuid.uuid4().hex[:8]
+                _file_storage[file_id] = result.file_path
+                
+                await status_msg.delete()
+                await message.answer(
+                    "🛠 <b>MP3 Tools</b>\n\nРедактировать трек?",
+                    reply_markup=get_mp3tools_keyboard(file_id).as_markup(),
+                    parse_mode="HTML"
+                )
+                return  # Don't cleanup - file is now managed by mp3tools
         else:
             video_file = FSInputFile(
                 path=result.file_path,
@@ -126,4 +141,6 @@ async def process_download(message: Message, url: str, media_type: str) -> None:
     except Exception as e:
         await status_msg.edit_text(f"❌ Ошибка отправки: {str(e)[:100]}")
     finally:
-        await BaseDownloader.cleanup(result.file_path)
+        # Cleanup only if not SoundCloud (which keeps file for editing)
+        if platform != "soundcloud":
+            await BaseDownloader.cleanup(result.file_path)
