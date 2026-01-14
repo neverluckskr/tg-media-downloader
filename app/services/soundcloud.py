@@ -1,11 +1,14 @@
 import asyncio
 import aiohttp
+import logging
 from typing import Optional
 
 from app.services.base import BaseDownloader, MediaResult
 from app.services.ytdlp_wrapper import run_ytdlp, extract_title_from_path, get_ytdlp_path
 from app.services.mp3tools import mp3tools
 from app.config import config
+
+logger = logging.getLogger(__name__)
 
 
 class SoundCloudDownloader(BaseDownloader):
@@ -75,8 +78,11 @@ class SoundCloudDownloader(BaseDownloader):
             metadata.get("creator") or 
             metadata.get("artist") or
             metadata.get("channel") or
+            metadata.get("uploader_id") or
             ""
         )
+        
+        logger.info(f"Metadata: title={raw_title}, uploader={uploader}, keys={list(metadata.keys())[:10]}")
         
         # Also try to read artist from MP3 tags (yt-dlp embeds this)
         if not uploader:
