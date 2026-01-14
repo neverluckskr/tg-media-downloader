@@ -41,8 +41,8 @@ class YouTubeDownloader(BaseDownloader):
             format_spec=format_spec,
             timeout=300,
             extra_args=[
-                "--extractor-args", "youtube:player_client=web",
-                "--no-check-certificates",
+                "--extractor-args", "youtube:player_client=ios,web",
+                "--user-agent", "Mozilla/5.0 (iPhone; CPU iPhone OS 16_0 like Mac OS X) AppleWebKit/605.1.15",
             ]
         )
         
