@@ -1,10 +1,9 @@
 """Inline mode handler - @bot query in any chat."""
 import hashlib
 from aiogram import Router
-from aiogram.types import InlineQuery, InlineQueryResultArticle, InputTextMessageContent, InlineQueryResultAudio
+from aiogram.types import InlineQuery, InlineQueryResultArticle, InputTextMessageContent
 
 from app.handlers.search import search_soundcloud
-from app.database import db
 
 router = Router(name="inline")
 
@@ -15,7 +14,6 @@ async def handle_inline_query(inline_query: InlineQuery) -> None:
     query = inline_query.query.strip()
     
     if len(query) < 2:
-        # Show hint
         await inline_query.answer(
             [],
             switch_pm_text="🔎 Введите название трека",
@@ -25,46 +23,28 @@ async def handle_inline_query(inline_query: InlineQuery) -> None:
         return
     
     try:
-        results = await search_soundcloud(query, limit=15)
+        # Fast search with timeout=10s, limit=8 results
+        results = await search_soundcloud(query, limit=8, timeout=10)
         
         articles = []
         for r in results:
             dur = r.get('duration') or 0
-            if dur:
-                duration = f"{int(dur) // 60}:{int(dur) % 60:02d}"
-            else:
-                duration = "?"
-            
+            duration = f"{int(dur) // 60}:{int(dur) % 60:02d}" if dur else "?"
             result_id = hashlib.md5(r['url'].encode()).hexdigest()[:16]
             
-            # Check if we have cached audio
-            cached = await db.get_cached_file(r['url'])
-            
-            if cached and cached.get('file_id'):
-                # Send cached audio directly
-                articles.append(
-                    InlineQueryResultAudio(
-                        id=result_id,
-                        audio_file_id=cached['file_id'],
-                        title=r['title'],
-                        performer=r['uploader']
-                    )
+            articles.append(
+                InlineQueryResultArticle(
+                    id=result_id,
+                    title=f"🎵 {r['title']}",
+                    description=f"{r['uploader']} • {duration}",
+                    input_message_content=InputTextMessageContent(
+                        message_text=r['url']
+                    ),
+                    thumbnail_url="https://a-v2.sndcdn.com/assets/images/sc-icons/favicon-2cadd14bdb.ico"
                 )
-            else:
-                # Send link (user will need to download via bot)
-                articles.append(
-                    InlineQueryResultArticle(
-                        id=result_id,
-                        title=f"🎵 {r['title']}",
-                        description=f"{r['uploader']} • {duration}",
-                        input_message_content=InputTextMessageContent(
-                            message_text=r['url']
-                        ),
-                        thumbnail_url="https://a-v2.sndcdn.com/assets/images/sc-icons/favicon-2cadd14bdb.ico"
-                    )
-                )
+            )
         
-        await inline_query.answer(articles, cache_time=30, is_personal=True)
+        await inline_query.answer(articles, cache_time=60)
         
     except Exception:
-        await inline_query.answer([], cache_time=10)
+        await inline_query.answer([], cache_time=5)

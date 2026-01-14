@@ -28,13 +28,14 @@ class SearchCallback(CallbackData, prefix="src"):
     h: str  # URL hash
 
 
-async def search_soundcloud(query: str, limit: int = 10) -> list[dict]:
-    """Search SoundCloud using yt-dlp."""
+async def search_soundcloud(query: str, limit: int = 10, timeout: int = 15) -> list[dict]:
+    """Search SoundCloud using yt-dlp with timeout."""
     cmd = [
         get_ytdlp_path(),
-        "-j",
+        "--flat-playlist",
+        "--dump-json",
         "--no-download",
-        "--no-playlist",
+        "--socket-timeout", "10",
         f"scsearch{limit}:{query}"
     ]
     
@@ -44,16 +45,22 @@ async def search_soundcloud(query: str, limit: int = 10) -> list[dict]:
         stderr=asyncio.subprocess.PIPE
     )
     
-    stdout, _ = await process.communicate()
+    try:
+        stdout, _ = await asyncio.wait_for(process.communicate(), timeout=timeout)
+    except asyncio.TimeoutError:
+        process.kill()
+        return []
     
     results = []
     for line in stdout.decode().strip().split('\n'):
         if line:
             try:
                 data = json.loads(line)
-                # Use webpage_url which is the proper soundcloud.com URL
-                url = data.get("webpage_url") or data.get("url", "")
-                if url and "soundcloud.com" in url:
+                url = data.get("url") or data.get("webpage_url", "")
+                # flat-playlist gives shorter URLs, construct full URL
+                if url and not url.startswith("http"):
+                    url = f"https://soundcloud.com{url}" if url.startswith("/") else ""
+                if url:
                     results.append({
                         "title": data.get("title", "Unknown"),
                         "url": url,
