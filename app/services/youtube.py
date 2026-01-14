@@ -39,7 +39,11 @@ class YouTubeDownloader(BaseDownloader):
             extract_audio=extract_audio,
             audio_format="mp3",
             format_spec=format_spec,
-            timeout=300
+            timeout=300,
+            extra_args=[
+                "--extractor-args", "youtube:player_client=web",
+                "--no-check-certificates",
+            ]
         )
         
         if not success:
