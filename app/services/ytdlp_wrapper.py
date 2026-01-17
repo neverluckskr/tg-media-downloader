@@ -29,7 +29,7 @@ async def run_ytdlp(
     output_dir.mkdir(parents=True, exist_ok=True)
     
     unique_id = uuid.uuid4().hex[:8]
-    output_template = str(output_dir / f"{unique_id}_%(title)s.%(ext)s")
+    output_template = str(output_dir / f"{unique_id}_%(title).80s.%(ext)s")
     
     cmd = [
         get_ytdlp_path(),
