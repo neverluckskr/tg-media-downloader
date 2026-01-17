@@ -49,7 +49,9 @@ def get_url_pattern() -> str:
         r"on\.soundcloud\.com/[\w]+|"
         r"tiktok\.com/@[\w.-]+/(?:video|photo)/\d+|"
         r"vm\.tiktok\.com/[\w]+|"
-        r"vt\.tiktok\.com/[\w]+"
+        r"vt\.tiktok\.com/[\w]+|"
+        r"pinterest\.(?:com|ru|co\.uk|de|fr)/pin/[\w-]+|"
+        r"pin\.it/[\w]+"
         r")"
     )
 
@@ -99,7 +101,14 @@ async def handle_media_link(message: Message) -> None:
         return
     
     # TikTok - auto download (video or photo slideshow)
-    await process_download(message, url, "video", platform="tiktok", user_id=user_id)
+    if platform == "tiktok":
+        await process_download(message, url, "video", platform="tiktok", user_id=user_id)
+        return
+    
+    # Pinterest - auto download (video or photo)
+    if platform == "pinterest":
+        await process_download(message, url, "auto", platform="pinterest", user_id=user_id)
+        return
 
 
 @bot_router.callback_query(MediaTypeCallback.filter())

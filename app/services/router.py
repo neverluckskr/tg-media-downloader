@@ -3,11 +3,13 @@ from typing import Optional
 from app.services.base import BaseDownloader, MediaResult
 from app.services.soundcloud import SoundCloudDownloader
 from app.services.tiktok import TikTokDownloader
+from app.services.pinterest import PinterestDownloader
 
 
 DOWNLOADERS: list[type[BaseDownloader]] = [
     SoundCloudDownloader,
     TikTokDownloader,
+    PinterestDownloader,
 ]
 
 
