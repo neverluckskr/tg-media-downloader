@@ -3,7 +3,7 @@ import uuid
 import logging
 import traceback
 from aiogram import Router, F
-from aiogram.types import Message, FSInputFile, CallbackQuery
+from aiogram.types import Message, FSInputFile, CallbackQuery, InputMediaPhoto
 from aiogram.enums import ChatAction
 from aiogram.filters.callback_data import CallbackData
 from aiogram.utils.keyboard import InlineKeyboardBuilder
@@ -98,12 +98,7 @@ async def handle_media_link(message: Message) -> None:
         await process_download(message, url, "audio", platform="soundcloud", user_id=user_id)
         return
     
-    # TikTok photo posts not supported
-    if "/photo/" in url:
-        await message.answer("📷 TikTok photo posts not supported yet")
-        return
-    
-    # TikTok - auto video by default (faster UX)
+    # TikTok - auto download (video or photo slideshow)
     await process_download(message, url, "video", platform="tiktok", user_id=user_id)
 
 
@@ -220,6 +215,29 @@ async def process_download(message: Message, url: str, media_type: str, platform
                     reply_markup=get_mp3tools_keyboard(file_id, user_id).as_markup()
                 )
                 return  # Don't cleanup - file is now managed by mp3tools
+        elif result.media_type == "photo":
+            # TikTok photo slideshow - send as media group
+            all_photos = [result.file_path] + (result.extra_files or [])
+            
+            if len(all_photos) == 1:
+                # Single photo
+                photo_file = FSInputFile(path=all_photos[0])
+                await message.answer_photo(photo=photo_file, caption=f"📷 {sanitize_title(result.title)}")
+            else:
+                # Multiple photos - send as media group
+                media_group = []
+                for i, photo_path in enumerate(all_photos[:10]):  # Telegram limit: 10 media per group
+                    media = InputMediaPhoto(
+                        media=FSInputFile(path=photo_path),
+                        caption=f"📷 {sanitize_title(result.title)}" if i == 0 else None
+                    )
+                    media_group.append(media)
+                
+                await message.answer_media_group(media=media_group)
+            
+            # Cleanup all photo files
+            for photo_path in all_photos:
+                await BaseDownloader.cleanup(photo_path)
         else:
             safe_title = sanitize_title(result.title)
             video_file = FSInputFile(

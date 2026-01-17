@@ -14,6 +14,7 @@ class MediaResult:
     duration: Optional[int] = None
     media_type: str = "audio"
     error: Optional[str] = None
+    extra_files: Optional[list[Path]] = None
 
 
 class BaseDownloader(ABC):
