@@ -11,7 +11,7 @@ from app.config import config
 
 class PinterestDownloader(BaseDownloader):
     PLATFORM = "pinterest"
-    URL_PATTERN = r"https?://(?:www\.)?(?:pinterest\.(?:com|ru|co\.uk|de|fr|es|it|ca|au|jp|kr|se|nz|at|ch|pt|ie|co|cl|mx|dk|no|be|fi|nl|pl|cz)/pin/[\w-]+|pin\.it/[\w]+)"
+    URL_PATTERN = r"https?://(?:[a-z]{2}\.)?(?:www\.)?(?:pinterest\.(?:com|co\.uk|de|fr|es|it|ca|au|jp|kr|se|nz|at|ch|pt|ie|co|cl|mx|dk|no|be|fi|nl|pl|cz)/pin/[\w-]+|pin\.it/[\w]+)"
     
     HEADERS = {
         "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",

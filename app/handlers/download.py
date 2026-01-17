@@ -50,7 +50,7 @@ def get_url_pattern() -> str:
         r"tiktok\.com/@[\w.-]+/(?:video|photo)/\d+|"
         r"vm\.tiktok\.com/[\w]+|"
         r"vt\.tiktok\.com/[\w]+|"
-        r"pinterest\.(?:com|ru|co\.uk|de|fr)/pin/[\w-]+|"
+        r"(?:[a-z]{2}\.)?(?:www\.)?pinterest\.(?:com|co\.uk|de|fr|es|it|ca|au|jp|kr)/pin/[\w-]+|"
         r"pin\.it/[\w]+"
         r")"
     )
