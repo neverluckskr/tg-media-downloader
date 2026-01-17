@@ -145,11 +145,15 @@ async def process_download(message: Message, url: str, media_type: str, platform
         except Exception:
             pass  # Cache invalid, re-download
     
-    status_msg = await message.answer("⏳ 0%")
+    # Platform emoji
+    platform_emoji = {"soundcloud": "🟠", "tiktok": "🎵", "pinterest": "📌"}.get(platform, "📥")
+    status_msg = await message.answer(f"{platform_emoji} <b>Загрузка...</b>\n\n▓░░░░░░░░░ 0%", parse_mode="HTML")
     
     async def update_progress(percent: int):
         try:
-            await status_msg.edit_text(f"⏳ {percent}%")
+            filled = int(percent / 10)
+            bar = "▓" * filled + "░" * (10 - filled)
+            await status_msg.edit_text(f"{platform_emoji} <b>Загрузка...</b>\n\n{bar} {percent}%", parse_mode="HTML")
         except Exception:
             pass
     

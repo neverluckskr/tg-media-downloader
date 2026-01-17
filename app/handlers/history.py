@@ -20,10 +20,18 @@ async def cmd_history(message: Message) -> None:
         await message.answer(t(user_id, "history_empty"))
         return
     
+    platform_emojis = {
+        "soundcloud": "🟠",
+        "tiktok": "🎵", 
+        "pinterest": "📌"
+    }
+    
     text = t(user_id, "history_title") + "\n\n"
     for i, record in enumerate(history, 1):
-        platform_emoji = "🔊" if record.platform == "soundcloud" else "🎵"
-        text += f"{i}. {platform_emoji} <b>{record.title}</b>\n   {record.artist}\n\n"
+        emoji = platform_emojis.get(record.platform, "📥")
+        title = record.title[:40] + "..." if len(record.title) > 40 else record.title
+        artist = record.artist[:30] if record.artist else ""
+        text += f"{emoji} <b>{title}</b>\n    <i>{artist}</i>\n\n"
     
     await message.answer(text, parse_mode="HTML")
 

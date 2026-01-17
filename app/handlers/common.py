@@ -21,17 +21,20 @@ def get_main_keyboard(user_id: int) -> ReplyKeyboardMarkup:
     
     return ReplyKeyboardMarkup(
         keyboard=[
-            [KeyboardButton(text="🔍 Поиск" if is_ru else "🔍 Search")],
             [
-                KeyboardButton(text="📜 История" if is_ru else "📜 History"),
-                KeyboardButton(text="📊 Статистика" if is_ru else "📊 Stats")
+                KeyboardButton(text="🔍 Поиск SoundCloud" if is_ru else "🔍 Search SoundCloud"),
             ],
             [
                 KeyboardButton(text="🎵 MP3 Tools"),
-                KeyboardButton(text="🌐 Язык" if is_ru else "🌐 Language")
+                KeyboardButton(text="📜 История" if is_ru else "📜 History"),
+            ],
+            [
+                KeyboardButton(text="❓ Помощь" if is_ru else "❓ Help"),
+                KeyboardButton(text="🌐 Язык" if is_ru else "🌐 Language"),
             ]
         ],
-        resize_keyboard=True
+        resize_keyboard=True,
+        input_field_placeholder="🔗 Вставь ссылку..." if is_ru else "🔗 Paste a link..."
     )
 
 
@@ -72,8 +75,13 @@ async def handle_lang_choice(callback: CallbackQuery, callback_data: LangCallbac
         t(user_id, "start"),
         parse_mode="HTML"
     )
-    # Send keyboard
-    await callback.message.answer("⌨️", reply_markup=get_main_keyboard(user_id))
+    # Send keyboard with welcome
+    is_ru = callback_data.code == "ru"
+    await callback.message.answer(
+        "⬇️ <b>Меню</b>" if is_ru else "⬇️ <b>Menu</b>",
+        reply_markup=get_main_keyboard(user_id),
+        parse_mode="HTML"
+    )
 
 
 @router.message(Command("lang"))
@@ -97,7 +105,7 @@ async def cmd_help(message: Message) -> None:
 
 # ============ KEYBOARD BUTTON HANDLERS ============
 
-@router.message(lambda m: m.text in ["🔍 Поиск", "🔍 Search"])
+@router.message(lambda m: m.text in ["🔍 Поиск SoundCloud", "🔍 Search SoundCloud"])
 async def btn_search(message: Message, state) -> None:
     from app.handlers.search import SearchStates
     user_id = message.from_user.id
@@ -105,9 +113,17 @@ async def btn_search(message: Message, state) -> None:
     is_ru = "Русский" in lang
     
     if is_ru:
-        text = "🔎 <b>Поиск</b>\n\nИсточник: 🟠 SoundCloud\n\nВведи запрос:"
+        text = (
+            "🔎 <b>Поиск музыки</b>\n\n"
+            "🟠 Источник: <b>SoundCloud</b>\n\n"
+            "✏️ Введи название трека или исполнителя:"
+        )
     else:
-        text = "🔎 <b>Search</b>\n\nSource: 🟠 SoundCloud\n\nEnter your query:"
+        text = (
+            "🔎 <b>Music Search</b>\n\n"
+            "🟠 Source: <b>SoundCloud</b>\n\n"
+            "✏️ Enter track name or artist:"
+        )
     
     await state.set_state(SearchStates.waiting_query)
     await message.answer(text, parse_mode="HTML")
@@ -119,17 +135,40 @@ async def btn_history(message: Message) -> None:
     await cmd_history(message)
 
 
-@router.message(lambda m: m.text in ["📊 Статистика", "📊 Stats"])
-async def btn_stats(message: Message) -> None:
-    from app.handlers.history import cmd_stats
-    await cmd_stats(message)
-
-
 @router.message(lambda m: m.text == "🎵 MP3 Tools")
 async def btn_mp3tools(message: Message) -> None:
-    await message.answer(t(message.from_user.id, "mp3tools_send"))
+    user_id = message.from_user.id
+    lang = t(user_id, "lang_changed")
+    is_ru = "Русский" in lang
+    
+    if is_ru:
+        text = (
+            "🎵 <b>MP3 Tools</b>\n\n"
+            "Отправь MP3 файл, чтобы:\n"
+            "  • ✏️ Изменить теги (название, автор)\n"
+            "  • 🖼 Установить обложку"
+        )
+    else:
+        text = (
+            "🎵 <b>MP3 Tools</b>\n\n"
+            "Send an MP3 file to:\n"
+            "  • ✏️ Edit tags (title, artist)\n"
+            "  • 🖼 Set album cover"
+        )
+    
+    await message.answer(text, parse_mode="HTML")
+
+
+@router.message(lambda m: m.text in ["❓ Помощь", "❓ Help"])
+async def btn_help(message: Message) -> None:
+    await message.answer(t(message.from_user.id, "help"), parse_mode="HTML")
 
 
 @router.message(lambda m: m.text in ["🌐 Язык", "🌐 Language"])
 async def btn_lang(message: Message) -> None:
-    await message.answer("🌐", reply_markup=get_lang_keyboard().as_markup())
+    user_id = message.from_user.id
+    lang = t(user_id, "lang_changed")
+    is_ru = "Русский" in lang
+    
+    text = "🌐 <b>Выбери язык:</b>" if is_ru else "🌐 <b>Choose language:</b>"
+    await message.answer(text, reply_markup=get_lang_keyboard().as_markup(), parse_mode="HTML")

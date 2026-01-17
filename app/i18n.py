@@ -10,9 +10,32 @@ DEFAULT_LANG = "ru"
 TRANSLATIONS = {
     "ru": {
         # Start & Help
-        "welcome": "👋 Привет!\n\nВыбери язык / Choose language:",
-        "start": "Кидай ссылку — скачаю:\n• <b>SoundCloud</b> → MP3\n• <b>TikTok</b> → видео или MP3",
-        "help": "<b>Команды:</b>\n/mp3tools — редактор тегов\n/lang — сменить язык\n\n<b>Ссылки:</b>\n<code>soundcloud.com/...</code>\n<code>vm.tiktok.com/...</code>",
+        "welcome": (
+            "✨ <b>Media Downloader</b>\n\n"
+            "🎵 Скачивай медиа с популярных платформ\n\n"
+            "🌐 Выбери язык / Choose language:"
+        ),
+        "start": (
+            "🚀 <b>Готов к работе!</b>\n\n"
+            "📎 Просто отправь ссылку:\n\n"
+            "  🟠 <b>SoundCloud</b> → музыка\n"
+            "  🎵 <b>TikTok</b> → видео и фото\n"
+            "  📌 <b>Pinterest</b> → фото и видео\n\n"
+            "💡 <i>Или используй кнопки ниже</i>"
+        ),
+        "help": (
+            "📖 <b>Справка</b>\n\n"
+            "▸ <b>Команды:</b>\n"
+            "  /search — поиск на SoundCloud\n"
+            "  /mp3tools — редактор MP3 тегов\n"
+            "  /history — история загрузок\n"
+            "  /lang — сменить язык\n\n"
+            "▸ <b>Поддерживаемые ссылки:</b>\n"
+            "  • <code>soundcloud.com/...</code>\n"
+            "  • <code>tiktok.com/...</code>\n"
+            "  • <code>pinterest.com/...</code>\n"
+            "  • <code>pin.it/...</code>"
+        ),
         
         # Download
         "downloading": "⏳",
@@ -73,9 +96,32 @@ TRANSLATIONS = {
     },
     "en": {
         # Start & Help
-        "welcome": "👋 Hi!\n\nChoose language / Выбери язык:",
-        "start": "Send a link — I'll download:\n• <b>SoundCloud</b> → MP3\n• <b>TikTok</b> → video or MP3",
-        "help": "<b>Commands:</b>\n/mp3tools — tag editor\n/lang — change language\n\n<b>Links:</b>\n<code>soundcloud.com/...</code>\n<code>vm.tiktok.com/...</code>",
+        "welcome": (
+            "✨ <b>Media Downloader</b>\n\n"
+            "🎵 Download media from popular platforms\n\n"
+            "🌐 Choose language / Выбери язык:"
+        ),
+        "start": (
+            "🚀 <b>Ready to go!</b>\n\n"
+            "📎 Just send a link:\n\n"
+            "  🟠 <b>SoundCloud</b> → music\n"
+            "  🎵 <b>TikTok</b> → video & photos\n"
+            "  📌 <b>Pinterest</b> → photos & video\n\n"
+            "💡 <i>Or use buttons below</i>"
+        ),
+        "help": (
+            "📖 <b>Help</b>\n\n"
+            "▸ <b>Commands:</b>\n"
+            "  /search — search on SoundCloud\n"
+            "  /mp3tools — MP3 tag editor\n"
+            "  /history — download history\n"
+            "  /lang — change language\n\n"
+            "▸ <b>Supported links:</b>\n"
+            "  • <code>soundcloud.com/...</code>\n"
+            "  • <code>tiktok.com/...</code>\n"
+            "  • <code>pinterest.com/...</code>\n"
+            "  • <code>pin.it/...</code>"
+        ),
         
         # Download
         "downloading": "⏳",
