@@ -54,21 +54,25 @@ class PinterestDownloader(BaseDownloader):
                     videos = re.findall(r'https://v[^\"\s]*\.pinimg\.com/[^\"\s]+\.mp4', html)
                     video_url = videos[0] if videos else None
                     
-                    # Find image URLs
-                    images = re.findall(r'https://i\.pinimg\.com/[^\"\s]+\.(?:jpg|png|gif|webp)', html)
-                    
-                    # Prefer original quality
+                    # Find main pin image - search in JSON context first
                     image_url = None
-                    if images:
-                        originals = [img for img in images if '/originals/' in img]
-                        high_res = [img for img in images if '/1200x/' in img or '/736x/' in img]
-                        
-                        if originals:
-                            image_url = originals[0]
-                        elif high_res:
-                            image_url = high_res[0]
-                        else:
-                            image_url = images[0]
+                    
+                    # Method 1: Look for originals URL in JSON (most reliable)
+                    json_orig = re.search(r'"url":"(https://i\.pinimg\.com/originals/[^"]+)"', html)
+                    if json_orig:
+                        image_url = json_orig.group(1)
+                    
+                    # Method 2: Fallback to 1200x or 736x in JSON
+                    if not image_url:
+                        json_large = re.search(r'"url":"(https://i\.pinimg\.com/(?:1200x|736x)/[^"]+)"', html)
+                        if json_large:
+                            image_url = json_large.group(1)
+                    
+                    # Method 3: Any pinimg in JSON as last resort
+                    if not image_url:
+                        json_any = re.search(r'"url":"(https://i\.pinimg\.com/[^"]+\.(?:jpg|png|gif|webp))"', html)
+                        if json_any:
+                            image_url = json_any.group(1)
                     
                     return image_url, video_url, title[:80]
                     
