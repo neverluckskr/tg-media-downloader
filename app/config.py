@@ -7,6 +7,7 @@ load_dotenv()
 
 class Config:
     BOT_TOKEN: str = os.getenv("BOT_TOKEN", "")
+    YANDEX_MUSIC_TOKEN: str = os.getenv("YANDEX_MUSIC_TOKEN", "").strip()
     DOWNLOAD_DIR: Path = Path(os.getenv("DOWNLOAD_DIR", "/tmp/media_downloads"))
     
     # Telegram file size limit (50 MB for bots)

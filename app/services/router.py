@@ -4,10 +4,12 @@ from app.services.base import BaseDownloader, MediaResult
 from app.services.soundcloud import SoundCloudDownloader
 from app.services.tiktok import TikTokDownloader
 from app.services.pinterest import PinterestDownloader
+from app.services.yandex_music import YandexMusicDownloader
 
 
 DOWNLOADERS: list[type[BaseDownloader]] = [
     SoundCloudDownloader,
+    YandexMusicDownloader,
     TikTokDownloader,
     PinterestDownloader,
 ]

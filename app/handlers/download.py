@@ -18,6 +18,8 @@ from app.config import config
 
 logger = logging.getLogger(__name__)
 
+AUDIO_EDIT_PLATFORMS = {"soundcloud", "yandex_music"}
+
 
 def sanitize_title(title: str, max_len: int = 60) -> str:
     """Sanitize title: limit length, keep emoji safe."""
@@ -44,9 +46,10 @@ def get_url_pattern() -> str:
     """Combined pattern for all supported platforms."""
     return (
         r"https?://(?:www\.)?"
-        r"(?:"
+        r"(?:" 
         r"soundcloud\.com/[\w-]+/[\w-]+|"
         r"on\.soundcloud\.com/[\w]+|"
+        r"music\.yandex\.(?:ru|com|by|kz|uz)/album/\d+/track/\d+(?:\?[^\s]+)?|"
         r"tiktok\.com/@[\w.-]+/(?:video|photo)/\d+|"
         r"vm\.tiktok\.com/[\w]+|"
         r"vt\.tiktok\.com/[\w]+|"
@@ -96,8 +99,8 @@ async def handle_media_link(message: Message) -> None:
         return
     
     # Audio-only platforms
-    if platform == "soundcloud":
-        await process_download(message, url, "audio", platform="soundcloud", user_id=user_id)
+    if platform in AUDIO_EDIT_PLATFORMS:
+        await process_download(message, url, "audio", platform=platform, user_id=user_id)
         return
     
     # TikTok - auto download (video or photo slideshow)
@@ -194,7 +197,7 @@ async def process_download(message: Message, url: str, media_type: str, platform
             )
             
             # Get resized thumbnail for Telegram (320x320 JPEG)
-            thumb_data = await mp3tools.get_thumbnail_for_telegram(result.file_path) if platform == "soundcloud" else None
+            thumb_data = await mp3tools.get_thumbnail_for_telegram(result.file_path) if platform in AUDIO_EDIT_PLATFORMS else None
             thumbnail = None
             thumb_path = None
             if thumb_data:
@@ -218,8 +221,8 @@ async def process_download(message: Message, url: str, media_type: str, platform
             if thumb_path and thumb_path.exists():
                 thumb_path.unlink()
             
-            # For SoundCloud: offer MP3 Tools
-            if platform == "soundcloud":
+            # For audio platforms: offer MP3 Tools
+            if platform in AUDIO_EDIT_PLATFORMS:
                 file_id = uuid.uuid4().hex[:8]
                 _file_storage[file_id] = result.file_path
                 
@@ -273,6 +276,6 @@ async def process_download(message: Message, url: str, media_type: str, platform
         await notify_owner(message.bot, f"{error_msg}\n\n{traceback.format_exc()}", user_id, url)
         logger.error(f"Send failed: {error_msg} | URL: {url}")
     finally:
-        # Cleanup only if not SoundCloud (which keeps file for editing)
-        if platform != "soundcloud":
+        # Cleanup only if the file is not handed over to MP3 tools.
+        if platform not in AUDIO_EDIT_PLATFORMS:
             await BaseDownloader.cleanup(result.file_path)
